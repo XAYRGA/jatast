@@ -12,17 +12,35 @@ namespace jatast
     {
         static void Main(string[] args)
         {
-       
-            cmdarg.cmdargs = args; 
+    
             //Console.WriteLine(generateDeviceToken());
             //Console.WriteLine(Guid.NewGuid().ToString());
             Console.WriteLine("JATAST -- JAudio Toolkit AST creator");
+#if DEBUG
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            Console.WriteLine("!JATAST build in debug mode, do not push into release!");
+            Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            Console.ForegroundColor = ConsoleColor.Gray;
+
+                    args = new string[]
+            {
+                "SMG_galaxy_candy01_strm.wav",
+                "out.ast",
+                "-encode-format",
+                "adpcm4"
+
+            };
+  
+#endif
+            cmdarg.cmdargs = args;
+
             EncodeFormat encFmt = EncodeFormat.PCM16;
             var encodingArg = cmdarg.findDynamicStringArgument("-encode-format", "def");
             var loopArg = cmdarg.findDynamicStringArgument("-loop", "none");
 
             var inFile = cmdarg.assertArg(0, "Input File");
-            if (inFile=="help")
+            if (inFile == "help")
             {
                 showHelp();
                 return;
@@ -54,17 +72,43 @@ namespace jatast
             }
 
             cmdarg.assert(!File.Exists(inFile), $"Cannot locate file '{inFile}'");
-            
+#if RELEASE
             try
             {
+#endif
 
-                
 
                 var wI = File.OpenRead(inFile);
                 var wIR = new BinaryReader(wI);
                 var wO = File.OpenWrite(outFile);
+                var wrt = new BeBinaryWriter(wO);
                 var wav = PCM16WAV.readStream(wIR);
-                var enc = new encoder(wav, encFmt, wO);
+                var enc = new AST();
+
+
+                enc.ChannelCount = wav.channels;
+                enc.BitsPerSample = wav.bitsPerSample;
+                enc.BytesPerFrame = wav.byteRate;
+                enc.SampleCount = wav.sampleCount;
+                enc.SampleRate = wav.sampleRate;
+                enc.format = encFmt;
+          
+            
+
+                for (int i = 0; i < wav.channels; i++)
+                {
+                    enc.Channels.Add(util.getPCMBufferChannel(wav, i, 0, enc.SampleCount));
+                }
+
+ 
+
+            if (wav.sampler.loops != null)
+                {
+                   enc.Loop = true;
+                   enc.LoopStart = (int)wav.sampler.loops[0].dwStart;
+                   enc.LoopEnd = (int)wav.sampler.loops[0].dwEnd;
+                }
+
                 if (loopArg != "none")
                 {
                     var loopData = loopArg.Split(',');
@@ -74,12 +118,14 @@ namespace jatast
                     cmdarg.assert(!UInt32.TryParse(loopData[0], out lS), $"Cannot parse '{loopData[0]}' as an integer.");
                     cmdarg.assert(!UInt32.TryParse(loopData[1], out lE), $"Cannot parse '{loopData[1]}' as an integer.");
                     cmdarg.assert(lS > lE, "Loop start is greater than loop end.");
-                    enc.loopStart = lS;
-                    enc.loopEnd = lE;
+                    enc.LoopStart = (int)lS;
+                    enc.LoopEnd= (int)lE;
                 }
-                enc.encode();
+                enc.WriteToStream(wrt);
 
-            } catch (Exception E)
+#if RELEASE
+            }
+            catch (Exception E)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Yikes!");
@@ -88,8 +134,8 @@ namespace jatast
                 Console.WriteLine();
                 Console.WriteLine($"That wasn't supposed to happen.\n\nA short description of the error: '{E.Message}'\n\nThings you can try:\n1. Checking your WAV file\n2. Check to make sure I can read and write the file.\n3. Crying a lot.\n\nIf you've tried all of these things, please put your tears and the above red text in a jar, and send it to the developer.");
             }
+#endif
 
-  
         }
 
         public static void showHelp()

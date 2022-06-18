@@ -33,15 +33,6 @@ namespace jatast
                 bw.BaseStream.Flush();
                 del++;
             }
-            /*
-            var delta = (int)(bw.BaseStream.Position % padding);
-            
-            if (delta == padding || delta==0)
-                return 0;
-            for (int i = 0; i < ( padding - delta ); i++)
-                bw.Write((byte)0x00);
-            return (padding - delta);
-            */
             return del;
         }
 
@@ -49,6 +40,17 @@ namespace jatast
         {
             var delta = (int)(Addr % padding);
             return (padding - delta);        
+        }
+
+        public static short[] getPCMBufferChannel(PCM16WAV wav, int channelNumber, int sampleOffset, int samples)
+        {
+            var ret = new short[samples];
+            for (int i = 0; i < samples; i++)
+                if (sampleOffset + i < wav.sampleCount)
+                    ret[i] = wav.buffer[wav.channels * (sampleOffset + i) + channelNumber];
+                else
+                    ret[i] = 0;
+            return ret;
         }
 
     }

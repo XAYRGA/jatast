@@ -67,6 +67,9 @@ namespace jatast
 		{
 			// check if all samples in frame are zero
 			// if so, write out an empty adpcm frame
+			for (int i = 0; i < pcm16.Length; i++)
+				pcm16[i] = (short)(pcm16[i] * 0.60f);
+
 			if (pcm16.All(sample => sample == 0))
 			{
 				for (var i = 0; i < 9; ++i)
@@ -389,14 +392,15 @@ namespace jatast
 
 		public static void Pcm16toAdpcm4(short[] pcm16, byte[] adpcm4, ref int last, ref int penult)
 		{
+
+			for (int i = 0; i < pcm16.Length; i++)
+				pcm16[i] = (short)(pcm16[i] * 0.35f);
 			// check if all samples in frame are zero
 			// if so, write out an empty adpcm frame
 			if (pcm16.All(sample => sample == 0))
 			{
 				for (var i = 0; i < 9; ++i)
-				{
 					adpcm4[i] = 0;
-				}
 
 				last = 0;
 				penult = 0;
@@ -475,6 +479,7 @@ namespace jatast
 							break;
 						}
 					}
+			
 
 					//coeff_error = coeff_error / 16;
 
@@ -519,7 +524,7 @@ namespace jatast
 					var prediction = ClampSample16Bit((lastCoeff * last + penultCoeff * penult) >> 11);
 					var difference = -(prediction - pcm16[i]); // negate because we need to counteract it
 					nibbles[i] = (difference / step);
-					var nibbleSample = (nibbles[i] * (2048 << scale)) ;
+					var nibbleSample = (nibbles[i] * (2048 << scale));
 					var decoded = ClampSample16Bit((nibbleSample + lastCoeff * last + penultCoeff * penult) >> 11);
 
 					penult = last;
