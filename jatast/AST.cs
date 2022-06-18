@@ -20,6 +20,7 @@ namespace jatast
     {
         private const int STRM_HEAD = 0x5354524D;
         private const int STRM_HEAD_SIZE = 0x40;
+        private const int STRM_HEAD_PADDING = 0x14;
         private const int BLCK_HEAD = 0x424C434B;
         private const int BLCK_SIZE = 0x2760;
         private const int BLCK_MAX_CHANNELS = 6;
@@ -60,8 +61,6 @@ namespace jatast
 
         public static byte[] transform_pcm16_mono_adpcm(short[] data, int sampleCount, ref int last, ref int penult)
         {
-            //adpcm_data = new byte[((WaveData.sampleCount / 9) * 16)];
-
 
             int frameCount = (sampleCount + 16 - 1) / 16;
 
@@ -69,11 +68,7 @@ namespace jatast
             var adjustedFrameBufferSize = frameBufferSize; //+ (frameBufferSize % 32); // pads buffer to 32 bytes. 
             byte[] adpcm_data = new byte[adjustedFrameBufferSize]; // 9 bytes per 16 samples 
 
-            //if (sampleCount / 16 != frameCount)
-                //Console.WriteLine($"Frame rounded! {sampleCount / 16} {frameCount}");
-            //Console.WriteLine($"\n\n\n{WaveData.sampleCount} samples\n{frameCount} frames.\n{frameBufferSize} bytes\n{adjustedFrameBufferSize} padded bytes. ");
             var adp_f_pos = 0; // ADPCM position
-
 
             var wavFP = data;
             // transform one frame at a time
@@ -128,7 +123,7 @@ namespace jatast
             wrt.Write(BLCK_SIZE);
             wrt.Write(0);
             wrt.Write(0x7F000000);
-            wrt.Write(new byte[0x14]);
+            wrt.Write(new byte[STRM_HEAD_PADDING]);
 
             var total_blocks = (((SampleCount / SamplesPerFrame) * BytesPerFrame) + BLCK_SIZE - 1) / BLCK_SIZE;
 
@@ -148,7 +143,6 @@ namespace jatast
             wrt.Close();
 
         }
-   
 
         private int[] last = new int[BLCK_MAX_CHANNELS];
         private int[] penult = new int[BLCK_MAX_CHANNELS];
@@ -156,12 +150,9 @@ namespace jatast
 
         private void WriteBlock(BeBinaryWriter wrt)
         {
-
             var totalFramesLeft = ((SampleCount - sampleOffset) + SamplesPerFrame - 1) / SamplesPerFrame;
             var thisBlockLength = (totalFramesLeft * BytesPerFrame) >= BLCK_SIZE ? BLCK_SIZE : totalFramesLeft * BytesPerFrame;
             var samplesThisFrame = (thisBlockLength / BytesPerFrame) * SamplesPerFrame;
-           // thisBlockLength = thisBlockLength + (32 - (thisBlockLength % 32)); // Pad size to 32
-
 
             wrt.Write(BLCK_HEAD);
             wrt.Write(thisBlockLength);
@@ -171,11 +162,8 @@ namespace jatast
                 wrt.Write((short)penult[i]);                 
             }
 
-
-
             for (int i=0; i < Channels.Count; i++)
             {
-                //Console.WriteLine($"{Channels.Count} {ChannelCount} {i}");
                 var samples = sliceSampleArray(Channels[i], sampleOffset, samplesThisFrame);
 
                 int last_Current = last[i];
@@ -199,7 +187,6 @@ namespace jatast
                 last[i] = (short)last_Current;
                 penult[i] = (short)penultimate_Current;
             }
-
             sampleOffset += samplesThisFrame;
         }
 

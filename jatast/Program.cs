@@ -76,8 +76,6 @@ namespace jatast
             try
             {
 #endif
-
-
                 var wI = File.OpenRead(inFile);
                 var wIR = new BinaryReader(wI);
                 var wO = File.OpenWrite(outFile);
@@ -85,24 +83,18 @@ namespace jatast
                 var wav = PCM16WAV.readStream(wIR);
                 var enc = new AST();
 
-
                 enc.ChannelCount = wav.channels;
                 enc.BitsPerSample = wav.bitsPerSample;
                 enc.BytesPerFrame = wav.byteRate;
                 enc.SampleCount = wav.sampleCount;
                 enc.SampleRate = wav.sampleRate;
                 enc.format = encFmt;
-          
-            
+
 
                 for (int i = 0; i < wav.channels; i++)
-                {
                     enc.Channels.Add(util.getPCMBufferChannel(wav, i, 0, enc.SampleCount));
-                }
 
- 
-
-            if (wav.sampler.loops != null)
+                if (wav.sampler.loops != null)
                 {
                    enc.Loop = true;
                    enc.LoopStart = (int)wav.sampler.loops[0].dwStart;
