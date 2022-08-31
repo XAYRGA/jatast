@@ -119,9 +119,6 @@ namespace jatast
                 SampleCount = LoopEnd;
                 
 
-
-            
-
             wrt.Write(STRM_HEAD);
             wrt.Write(0x00); // Temporary Length
             wrt.Write((ushort)format);
@@ -197,14 +194,12 @@ namespace jatast
 
 
             var leadoutSampleSavePosition = wrt.BaseStream.Position;
-            wrt.Write(new short[2 * BLCK_MAX_CHANNELS]);
+            wrt.Write(new byte[4 * BLCK_MAX_CHANNELS]); 
 
 
             for (int i=0; i < Channels.Count; i++)
             {
 
-            
-                //Console.WriteLine($"{Channels.Count} {ChannelCount} {i}");
                 var samples = sliceSampleArray(Channels[i], sampleOffset, samplesThisFrame);
 
                 int last_Current = last[i];
