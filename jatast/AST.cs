@@ -114,8 +114,8 @@ namespace jatast
                     break;
             }
 
-
-            if (Loop && SampleCount < LoopEnd)
+            // Tell encoder to clamp boundary, nothing plays after the loop.
+            if (Loop && (SampleCount > LoopEnd))
                 SampleCount = LoopEnd;
                 
 
@@ -148,20 +148,10 @@ namespace jatast
                 wrt.Flush();
             }
 
-
             var size = (int)wrt.BaseStream.Position;
 
-
-           // util.padTo(wrt, 0x20); // ow my ass 
             wrt.BaseStream.Position = 4;
             wrt.Write(size - STRM_HEAD_SIZE);
-
-            if (sampleCorrection > 0)
-            {
-                wrt.BaseStream.Position = 0x14;
-                wrt.Write(SampleCount + sampleCorrection);
-            }
-
 
             wrt.Flush();
             wrt.Close();
