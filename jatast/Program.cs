@@ -118,6 +118,7 @@ namespace jatast
                     cmdarg.assert(!UInt32.TryParse(loopData[0], out lS), $"Cannot parse '{loopData[0]}' as an integer.");
                     cmdarg.assert(!UInt32.TryParse(loopData[1], out lE), $"Cannot parse '{loopData[1]}' as an integer.");
                     cmdarg.assert(lS > lE, "Loop start is greater than loop end.");
+                    enc.Loop = true;
                     enc.LoopStart = (int)lS;
                     enc.LoopEnd= (int)lE;
                 }
