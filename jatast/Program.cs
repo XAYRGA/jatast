@@ -25,8 +25,8 @@ namespace jatast
 
                     args = new string[]
             {
-                "SMG_galaxy_candy01_strm.wav",
-                "out.ast",
+                "puretone.wav",
+                @"E:\DOLPHIN\root\pki2\files\AudioRes\Stream\title.w.32.c4.ast",
                 "-encode-format",
                 "adpcm4"
 
@@ -35,7 +35,7 @@ namespace jatast
 #endif
             cmdarg.cmdargs = args;
 
-            EncodeFormat encFmt = EncodeFormat.PCM16;
+            EncodeFormat encFmt = EncodeFormat.ADPCM4;
             var encodingArg = cmdarg.findDynamicStringArgument("-encode-format", "def");
             var loopArg = cmdarg.findDynamicStringArgument("-loop", "none");
 
@@ -56,7 +56,7 @@ namespace jatast
                     encFmt = EncodeFormat.PCM16;
                     break;
                 case "adpcm4":
-                    Console.WriteLine("WARNING: ADPCM4 has artifacts or clicks in it. It's still experimental.");
+                    Console.WriteLine("Encoding in ADPCM4 -- Report any bugs to the github page!");
                     encFmt = EncodeFormat.ADPCM4;
                     break;
                 case "pcm8":
@@ -64,7 +64,7 @@ namespace jatast
                     encFmt = EncodeFormat.PCM8;
                     break;
                 case "def":
-                    Console.WriteLine("No encoding format specified, using PCM16");
+                    Console.WriteLine("No encoding format specified, using ADPCM4");
                     break;
                 default:
                     Console.WriteLine($"Invalid encoding format '{encodingArg}' available formats are:\npcm16, adpcm4");
@@ -76,6 +76,8 @@ namespace jatast
             try
             {
 #endif
+
+
                 var wI = File.OpenRead(inFile);
                 var wIR = new BinaryReader(wI);
                 var wO = File.OpenWrite(outFile);
@@ -83,18 +85,24 @@ namespace jatast
                 var wav = PCM16WAV.readStream(wIR);
                 var enc = new AST();
 
+
                 enc.ChannelCount = wav.channels;
                 enc.BitsPerSample = wav.bitsPerSample;
                 enc.BytesPerFrame = wav.byteRate;
                 enc.SampleCount = wav.sampleCount;
                 enc.SampleRate = wav.sampleRate;
                 enc.format = encFmt;
-
+          
+            
 
                 for (int i = 0; i < wav.channels; i++)
+                {
                     enc.Channels.Add(util.getPCMBufferChannel(wav, i, 0, enc.SampleCount));
+                }
 
-                if (wav.sampler.loops != null)
+ 
+
+            if (wav.sampler.loops != null)
                 {
                    enc.Loop = true;
                    enc.LoopStart = (int)wav.sampler.loops[0].dwStart;

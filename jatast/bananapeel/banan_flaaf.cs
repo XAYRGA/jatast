@@ -63,12 +63,12 @@ namespace jatast
 			return (short)sample;
 		}
 
-		public static void Pcm16toAdpcm4HLE(short[] pcm16, byte[] adpcm4, ref int last, ref int penult)
+		public static void PCM162ADPCM4LLE(short[] pcm16, byte[] adpcm4, ref int last, ref int penult)
 		{
 			// check if all samples in frame are zero
 			// if so, write out an empty adpcm frame
 			for (int i = 0; i < pcm16.Length; i++)
-				pcm16[i] = (short)(pcm16[i] * 0.60f);
+				pcm16[i] = (short)(pcm16[i] * 0.75f);
 
 			if (pcm16.All(sample => sample == 0))
 			{
@@ -394,13 +394,16 @@ namespace jatast
 		{
 
 			for (int i = 0; i < pcm16.Length; i++)
-				pcm16[i] = (short)(pcm16[i] * 0.35f);
+				pcm16[i] = (short)(pcm16[i] * 0.70f);
+
 			// check if all samples in frame are zero
 			// if so, write out an empty adpcm frame
 			if (pcm16.All(sample => sample == 0))
 			{
 				for (var i = 0; i < 9; ++i)
+				{
 					adpcm4[i] = 0;
+				}
 
 				last = 0;
 				penult = 0;
@@ -479,7 +482,6 @@ namespace jatast
 							break;
 						}
 					}
-			
 
 					//coeff_error = coeff_error / 16;
 
