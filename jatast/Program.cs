@@ -25,7 +25,7 @@ namespace jatast
 
                     args = new string[]
             {
-                "BAD_FUTURE.wav",
+                "Shut Me Up.wav",
                 @"E:\DOLPHIN\root\pki2\files\AudioRes\Stream\title.w.32.c4.ast",
                 "-encode-format",
                 "adpcm4"
@@ -80,7 +80,7 @@ namespace jatast
 
                 var wI = File.OpenRead(inFile);
                 var wIR = new BinaryReader(wI);
-                var wO = File.OpenWrite(outFile);
+                var wO = File.Open(outFile,FileMode.Create,FileAccess.ReadWrite);
                 var wrt = new BeBinaryWriter(wO);
                 var wav = PCM16WAV.readStream(wIR);
                 var enc = new AST();

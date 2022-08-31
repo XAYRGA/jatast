@@ -135,18 +135,29 @@ namespace jatast
             penult = new int[BLCK_MAX_CHANNELS]; // reset
             sampleOffset = 0; // reset
 
+
+            var sampleCorrection = 0;
             for (int i = 0; i < total_blocks; i++)
             {
-                WriteBlock(wrt);
+                sampleCorrection += WriteBlock(wrt);
                 wrt.Flush();
             }
 
-            util.padTo(wrt, 0x20); // ow my ass 
 
             var size = (int)wrt.BaseStream.Position;
-            wrt.BaseStream.Position = 4;
 
+
+           // util.padTo(wrt, 0x20); // ow my ass 
+            wrt.BaseStream.Position = 4;
             wrt.Write(size - STRM_HEAD_SIZE);
+
+            if (sampleCorrection > 0)
+            {
+                wrt.BaseStream.Position = 0x14;
+                wrt.Write(SampleCount + sampleCorrection);
+            }
+
+
             wrt.Flush();
             wrt.Close();
 
@@ -157,17 +168,24 @@ namespace jatast
         private int[] penult = new int[BLCK_MAX_CHANNELS];
         private int sampleOffset = 0; 
 
-        private void WriteBlock(BeBinaryWriter wrt)
+        private int WriteBlock(BeBinaryWriter wrt)
         {
 
             var totalFramesLeft = ((SampleCount - sampleOffset) + SamplesPerFrame - 1) / SamplesPerFrame;
             var thisBlockLength = (totalFramesLeft * BytesPerFrame) >= BLCK_SIZE ? BLCK_SIZE : totalFramesLeft * BytesPerFrame;
             var samplesThisFrame = (thisBlockLength / BytesPerFrame) * SamplesPerFrame;
-            thisBlockLength = (thisBlockLength % 32)==0 ? thisBlockLength : thisBlockLength + (32 - (thisBlockLength % 32)); // Pad size to 32
+            //thisBlockLength = (thisBlockLength % 32)==0 ? thisBlockLength : thisBlockLength + (32 - (thisBlockLength % 32)); // Pad size to 32
+            var addSize = thisBlockLength;
+            while (((addSize % 32) + (addSize % BytesPerFrame)) != 0)
+                addSize++;
 
+            var extraBytes = addSize - thisBlockLength;
+            if (extraBytes > 0 )
+                Console.WriteLine($"BLCK Add size {addSize - thisBlockLength} bytes {extraBytes/BytesPerFrame} frames {(extraBytes / BytesPerFrame) * SamplesPerFrame} samples");
+       
 
             wrt.Write(BLCK_HEAD);
-            wrt.Write(thisBlockLength);
+            wrt.Write(thisBlockLength + extraBytes);
             var saveCOEFPos = wrt.BaseStream.Position;
 
             // These will be overwritten in code below, they're prewrites for alignment.
@@ -179,11 +197,12 @@ namespace jatast
               
             }
 
+            var sz_start = wrt.BaseStream.Position;
 
             for (int i=0; i < Channels.Count; i++)
             {
 
-                var sz_start = wrt.BaseStream.Position;
+            
                 //Console.WriteLine($"{Channels.Count} {ChannelCount} {i}");
                 var samples = sliceSampleArray(Channels[i], sampleOffset, samplesThisFrame);
 
@@ -208,9 +227,9 @@ namespace jatast
                 last[i] = (short)last_Current;
                 penult[i] = (short)penultimate_Current;
 
-                var sz = wrt.BaseStream.Position - sz_start;
-                //Console.WriteLine($"{thisBlockLength - sz}");
-                wrt.Write(new byte[thisBlockLength - sz]);
+                if (extraBytes > 0)
+                    wrt.Write(new byte[extraBytes]);
+
             }
 
             var oldPos = wrt.BaseStream.Position;
@@ -224,14 +243,13 @@ namespace jatast
             wrt.BaseStream.Position = oldPos;
 
             sampleOffset += samplesThisFrame;
+
+            return (extraBytes / BytesPerFrame) * SamplesPerFrame;
         }
 
         private short[] sliceSampleArray(short[] samples, int start, int sampleCount)
         {
-            //Console.WriteLine(samples.Length);
-            //Console.WriteLine(start);
-            //Console.WriteLine(sampleCount);
-                
+
             var ret = new short[sampleCount];
             for (int i = 0; i < sampleCount; i++)
                 if ( (i +start) < samples.Length )
