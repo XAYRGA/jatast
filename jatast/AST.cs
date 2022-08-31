@@ -168,14 +168,18 @@ namespace jatast
 
             wrt.Write(BLCK_HEAD);
             wrt.Write(thisBlockLength);
+            var saveCOEFPos = wrt.BaseStream.Position;
+
+            // These will be overwritten in code below, they're prewrites for alignment.
+            
             for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
             {
-
+                wrt.Write((short)(last[i]));
                 wrt.Write((short)(penult[i]));
-                wrt.Write((short)(last[i]));      
+              
             }
 
-           
+
             for (int i=0; i < Channels.Count; i++)
             {
 
@@ -208,6 +212,16 @@ namespace jatast
                 //Console.WriteLine($"{thisBlockLength - sz}");
                 wrt.Write(new byte[thisBlockLength - sz]);
             }
+
+            var oldPos = wrt.BaseStream.Position;
+
+            wrt.BaseStream.Position = saveCOEFPos;
+            for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
+            {
+                wrt.Write((short)(last[i]));
+                wrt.Write((short)(penult[i]));
+            }
+            wrt.BaseStream.Position = oldPos;
 
             sampleOffset += samplesThisFrame;
         }

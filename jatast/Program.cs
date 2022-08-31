@@ -25,7 +25,7 @@ namespace jatast
 
                     args = new string[]
             {
-                "puretone.wav",
+                "BAD_FUTURE.wav",
                 @"E:\DOLPHIN\root\pki2\files\AudioRes\Stream\title.w.32.c4.ast",
                 "-encode-format",
                 "adpcm4"
