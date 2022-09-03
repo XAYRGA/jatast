@@ -36,6 +36,7 @@ namespace jatast
 {
 	public static partial class bananapeel
 	{
+		public static float EncoderGain = 1f;
 		static int[] sSigned2BitTable = new int[4] {
 			0, 1, -2, -1,
 		};
@@ -52,45 +53,42 @@ namespace jatast
 		static short ClampSample16Bit(int sample)
 		{
 			if (sample < -32768)
-			{
 				sample = -32768;
-			}
 			else if (sample > 32767)
-			{
 				sample = 32767;
-			}
 
 			return (short)sample;
 		}
 
 		public static void PCM162ADPCM4LLE(short[] pcm16, byte[] adpcm4, ref int last, ref int penult)
 		{
-			// check if all samples in frame are zero
-			// if so, write out an empty adpcm frame
+
+			short lastCoeff;
+			short penultCoeff;
+			int step;
+
+			var pcm4 = false;
+			var nibbles = new int[16];
+			int coeffIndex = 0, scale = 0;
+
+
 			for (int i = 0; i < pcm16.Length; i++)
 				pcm16[i] = (short)(pcm16[i] * 0.75f);
 
 			if (pcm16.All(sample => sample == 0))
 			{
 				for (var i = 0; i < 9; ++i)
-				{
 					adpcm4[i] = 0;
-				}
-
 				last = 0;
 				penult = 0;
-
 				return;
 			}
 
-			var pcm4 = false;
-			var nibbles = new int[16];
-			int coeffIndex = 0, scale = 0;
 
 			// try to use coefficient zero for static silence
 			for (var i = 0; i < 3; ++i)
 			{
-				var step = (1 << i);
+				step = (1 << i);
 				var range = (8 << i);
 
 				if (pcm16.All(sample => sample >= -range && sample < range))
@@ -110,20 +108,19 @@ namespace jatast
 				// otherwise, select one of the remaining coefficients by smallest error
 				for (var coeff = 1; coeff < 16; ++coeff)
 				{
-					var lastCoeff = sAdpcmCoefficents[coeff, 0];
-					var penultCoeff = sAdpcmCoefficents[coeff, 1];
+					lastCoeff = sAdpcmCoefficents[coeff, 0];
+					penultCoeff = sAdpcmCoefficents[coeff, 1];
 					var found_scale = -1;
 					var coeff_error = 0;
 
 					// select the first scale that fits all differences
 					for (var current_scale = 0; current_scale < 16; ++current_scale)
 					{
-						var step = (1 << current_scale);
+						step = (1 << current_scale);
 						var nibbleCoeff = (2048 << current_scale);
 						var success = true;
 						coeff_error = 0;
 
-						// use non-ref copies
 						var _last = last;
 						var _penult = penult;
 
@@ -155,12 +152,8 @@ namespace jatast
 						}
 					}
 
-					//coeff_error = coeff_error / 16;
-
 					if (found_scale < 0)
-					{
 						continue;
-					}
 
 					if (coeff_error < minerror)
 					{
@@ -169,50 +162,30 @@ namespace jatast
 						scale = found_scale;
 					}
 				}
-
-				if (coeffIndex < 0)
-				{
-					var sb = new StringBuilder(256);
-					sb.Append("could not find coefficient!\nPCM16:");
-
-					for (var i = 0; i < 16; ++i)
-					{
-						sb.AppendFormat(" {0,6}", pcm16[i]);
-					}
-
-					sb.AppendFormat("\nLAST: {0,6} PENULT: {1,6}\n", last, penult);
-
-					Console.WriteLine(sb.ToString());
-				}
 			}
 
+			lastCoeff = sAdpcmCoefficents[coeffIndex, 0];
+			penultCoeff = sAdpcmCoefficents[coeffIndex, 1];
+
+			step = (1 << scale);
+
+			for (var i = 0; i < 16; ++i)
 			{
-				// calculate each delta and write to the nibbles
-				var lastCoeff = sAdpcmCoefficents[coeffIndex, 0];
-				var penultCoeff = sAdpcmCoefficents[coeffIndex, 1];
+				var prediction = ClampSample16Bit((lastCoeff * last + penultCoeff * penult) >> 11);
+				var difference = -(prediction - pcm16[i]); // negate because we need to counteract it
+				nibbles[i] = (difference / step);
+				var nibbleSample = (nibbles[i] * (2048 << scale));
+				var decoded = ClampSample16Bit((nibbleSample + lastCoeff * last + penultCoeff * penult) >> 11);
 
-				var step = (1 << scale);
+				penult = last;
+				last = decoded;
 
-				for (var i = 0; i < 16; ++i)
-				{
-					var prediction = ClampSample16Bit((lastCoeff * last + penultCoeff * penult) >> 11);
-					var difference = -(prediction - pcm16[i]); // negate because we need to counteract it
-					nibbles[i] = (difference / step);
-					var nibbleSample = (nibbles[i] * (2048 << scale));
-					var decoded = ClampSample16Bit((nibbleSample + lastCoeff * last + penultCoeff * penult) >> 11);
-
-					penult = last;
-					last = decoded;
-				}
 			}
 
-			// write out adpcm bytes
 			adpcm4[0] = (byte)((scale << 4) | coeffIndex);
 
 			for (var i = 0; i < 8; ++i)
-			{
 				adpcm4[1 + i] = (byte)(((nibbles[i * 2] << 4) & 0xF0) | (nibbles[i * 2 + 1] & 0xF));
-			}
 		}
 
 		public static void Adpcm2toPcm16(byte[] adpcm2, short[] pcm16, ref int last, ref int penult)
@@ -394,7 +367,7 @@ namespace jatast
 		{
 
 			for (int i = 0; i < pcm16.Length; i++)
-				pcm16[i] = (short)(pcm16[i] * 0.70f);
+				pcm16[i] = (short)(pcm16[i] * 0.70f * EncoderGain);
 
 			// check if all samples in frame are zero
 			// if so, write out an empty adpcm frame
@@ -471,7 +444,7 @@ namespace jatast
 
 							_penult = _last;
 							_last = decoded;
-
+						
 							// don't let +/- differences cancel each other out
 							coeff_error += Math.Abs(difference * difference / 2);
 						}

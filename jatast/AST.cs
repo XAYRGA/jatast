@@ -21,6 +21,7 @@ namespace jatast
         private const int STRM_HEAD = 0x5354524D;
         private const int STRM_HEAD_SIZE = 0x40;
         private const int BLCK_HEAD = 0x424C434B;
+        private const int BLCK_HEAD_SIZE = 0x20; 
         private const int BLCK_SIZE = 0x2760;
         private const int BLCK_MAX_CHANNELS = 6;
 
@@ -34,59 +35,81 @@ namespace jatast
         public short BitsPerSample;
         public short ChannelCount;
 
-        public List<short[]> Channels = new();
-
         public int BytesPerFrame;
         public int SamplesPerFrame;
+
+        public List<short[]> Channels = new();
+
+
+
+
+        private int[] last = new int[BLCK_MAX_CHANNELS];
+        private int[] penult = new int[BLCK_MAX_CHANNELS];
+        private int sampleOffset = 0;
+
+        private int[] loop_penult = new int[BLCK_MAX_CHANNELS];
+        private int[] loop_last = new int[BLCK_MAX_CHANNELS];
+
 
 
         public unsafe static byte[] PCM16ShortToByteBigEndian(short[] pcm)
         {
             var pcmB = new byte[pcm.Length * 2];
-            fixed (short* pcmD = pcm)
+
+            // For some reason this is faster than pinning in memory?
+            for (int i = 0; i < pcmB.Length; i += 2)
             {
-                var pcmSh = (byte*)pcmD;
-                //for (int i=0; i < pcm.Length;i++)
-                for (int i = 0; i < pcmB.Length; i += 2)
-                {
-                    pcmB[i] = pcmSh[i + 1];
-                    pcmB[i + 1] = pcmSh[i];
-                }
+                var ci = pcm[i];
+                pcmB[i] = (byte)(ci >> 8);
+                pcmB[i + 1] = (byte)(ci & 0xFF);
             }
             return pcmB;
         }
 
+        private int getSampleOffset(int sample, byte channel = 1, int lastBlockSize = BLCK_SIZE)
+        {
+            var offset = STRM_HEAD_SIZE;
+            var samplesPerBlock = (BLCK_SIZE / BytesPerFrame) * SamplesPerFrame;
+            var blockNumber =  sample / samplesPerBlock;
 
+            // Seek the size of every block that was skipped
+            offset += BLCK_HEAD_SIZE * (blockNumber + 1) + (blockNumber * BLCK_SIZE * ChannelCount) + ((channel - 1) * lastBlockSize);
 
-        public static byte[] transform_pcm16_mono_adpcm(short[] data, int sampleCount, ref int last, ref int penult)
+            // Finally, find the offset of the frame that this sample sits in.
+            offset += ( sample - 1 - (blockNumber*samplesPerBlock)) / SamplesPerFrame * BytesPerFrame;
+            return offset;                
+        }
+
+        private byte[] EncodeADPCM4Block(short[] samples, int sampleCount, ref int last, ref int penult, int channel)
         {
 
-            int frameCount = (sampleCount + 16 - 1) / 16;
+            int frameCount = (sampleCount + 16 - 1) / 16; // Roundup samples to 16 or else we'll truncate frames.
+            int frameBufferSize = frameCount * 9; 
+            byte[] adpcm_data = new byte[frameBufferSize]; 
+            int adpcmBufferPosition = 0; 
 
-            var frameBufferSize = frameCount * 9; // and we know the amount of bytes that the buffer will take.
-            var adjustedFrameBufferSize = frameBufferSize; //+ (frameBufferSize % 32); // pads buffer to 32 bytes. 
-
-            byte[] adpcm_data = new byte[adjustedFrameBufferSize]; // 9 bytes per 16 samples 
-
-            var adp_f_pos = 0; 
-
-
-            var wavFP = data;
             // transform one frame at a time
             for (int ix = 0; ix < frameCount; ix++)
             {
                 short[] wavIn = new short[16];
                 byte[] adpcmOut = new byte[9];
+
+                // Extract samples 16 at a time, 1 frame = 16 samples / 9 bytes. 
                 for (int k = 0; k < 16; k++)
-                    wavIn[k] = wavFP[(ix * 16) + k];
-
-                // build ADPCM frame
+                    wavIn[k] = samples[(ix * 16) + k];
+                
+                // Hack for looping 
+                if (Loop && (sampleOffset + (ix  * 16) == LoopStart))
+                {
+                    loop_last[channel] = last;
+                    loop_penult[channel] = penult;
+                    Console.WriteLine($"store loop predictor values N-1 ({last}) N-2({penult}) Chn:{channel} Smpl:{sampleOffset + (ix*16)}");
+                }
                 bananapeel.PCM162ADPCM4LLE(wavIn, adpcmOut, ref last, ref penult); // convert PCM16 -> ADPCM4
-
                 for (int k = 0; k < 9; k++)
                 {
-                    adpcm_data[adp_f_pos] = adpcmOut[k]; // dump into ADPCM buffer
-                    adp_f_pos++; // increment ADPCM byte
+                    adpcm_data[adpcmBufferPosition] = adpcmOut[k]; // dump into ADPCM buffer
+                    adpcmBufferPosition++;
                 }
             }
             return adpcm_data;
@@ -103,6 +126,8 @@ namespace jatast
                     SamplesPerFrame = 16;
                     if (LoopStart % 16 != 0)
                         Console.WriteLine($"ADPCM ENC WARN: Start loop {LoopStart} is not divisible by 16, corrected to { LoopStart += (16 - (LoopStart % 16))} ");
+                    if (LoopEnd % 16 != 0) // Can't increase. 
+                        Console.WriteLine($"ADPCM ENC WARN: End loop {LoopEnd} is not divisible by 16, corrected to {LoopEnd=LoopEnd - (LoopEnd % 16)} ");
                     break;
                 case EncodeFormat.PCM8:
                     BytesPerFrame = 1;
@@ -117,7 +142,6 @@ namespace jatast
             // Tell encoder to clamp boundary, nothing plays after the loop.
             if (Loop && (SampleCount > LoopEnd))
                 SampleCount = LoopEnd;
-                
 
             wrt.Write(STRM_HEAD);
             wrt.Write(0x00); // Temporary Length
@@ -134,22 +158,25 @@ namespace jatast
             wrt.Write(0x7F000000);
             wrt.Write(new byte[0x14]);
 
+
             var total_blocks = (((SampleCount / SamplesPerFrame) * BytesPerFrame) + BLCK_SIZE - 1) / BLCK_SIZE;
 
+            // sample history storage for blocks
             last = new int[BLCK_MAX_CHANNELS]; // reset
             penult = new int[BLCK_MAX_CHANNELS]; // reset
+
             sampleOffset = 0; // reset
 
+            Console.WriteLine($"SO {getSampleOffset(0x1D9550,2, 0x0780):X}");
 
-            var sampleCorrection = 0;
             for (int i = 0; i < total_blocks; i++)
             {
-                sampleCorrection += WriteBlock(wrt);
+                WriteBlock(wrt, i+1==total_blocks);
                 wrt.Flush();
             }
 
+            // Save the size and flush it into 0x04 of the header.
             var size = (int)wrt.BaseStream.Position;
-
             wrt.BaseStream.Position = 4;
             wrt.Write(size - STRM_HEAD_SIZE);
 
@@ -159,28 +186,23 @@ namespace jatast
         }
    
 
-        private int[] last = new int[BLCK_MAX_CHANNELS];
-        private int[] penult = new int[BLCK_MAX_CHANNELS];
-        private int sampleOffset = 0; 
 
-        private int WriteBlock(BeBinaryWriter wrt)
+        private int WriteBlock(BeBinaryWriter wrt, bool lastBlock = false)
         {
 
             var totalFramesLeft = ((SampleCount - sampleOffset) + SamplesPerFrame - 1) / SamplesPerFrame;
             var thisBlockLength = (totalFramesLeft * BytesPerFrame) >= BLCK_SIZE ? BLCK_SIZE : totalFramesLeft * BytesPerFrame;
             var samplesThisFrame = (thisBlockLength / BytesPerFrame) * SamplesPerFrame;
+            var paddingSize = 32 - (thisBlockLength % 32);
+     
+            Console.WriteLine($"Output ADPCM4 Samples... {samplesThisFrame}");
 
-            var addSize = thisBlockLength;
-            while (((addSize % 32) + (addSize % BytesPerFrame)) != 0)
-                addSize++;
-
-            var extraBytes = addSize - thisBlockLength;
-            if (extraBytes > 0 )
-                Console.WriteLine($"BLCK Add size {addSize - thisBlockLength} bytes {extraBytes/BytesPerFrame} frames {(extraBytes / BytesPerFrame) * SamplesPerFrame} samples");
+            if (paddingSize > 0 )
+                Console.WriteLine($"LAST BLCK Add size {paddingSize} bytes {paddingSize/BytesPerFrame} frames {(paddingSize / BytesPerFrame) * SamplesPerFrame} samples");
        
 
             wrt.Write(BLCK_HEAD);
-            wrt.Write(thisBlockLength + extraBytes);
+            wrt.Write(thisBlockLength + paddingSize);
 
 
             var leadoutSampleSavePosition = wrt.BaseStream.Position;
@@ -189,7 +211,6 @@ namespace jatast
 
             for (int i=0; i < Channels.Count; i++)
             {
-
                 var samples = sliceSampleArray(Channels[i], sampleOffset, samplesThisFrame);
 
                 int last_Current = last[i];
@@ -199,7 +220,7 @@ namespace jatast
                 switch (format)
                 {
                     case EncodeFormat.ADPCM4:
-                       writeBuff = transform_pcm16_mono_adpcm(samples, samplesThisFrame, ref last_Current, ref penultimate_Current);
+                       writeBuff = EncodeADPCM4Block(samples, samplesThisFrame, ref last_Current, ref penultimate_Current,i);
                         break;
                     case EncodeFormat.PCM16:
                         writeBuff = PCM16ShortToByteBigEndian(samples);
@@ -210,22 +231,28 @@ namespace jatast
                 last[i] = (short)last_Current;
                 penult[i] = (short)penultimate_Current;
 
-                if (extraBytes > 0)
-                    wrt.Write(new byte[extraBytes]);
-
+                if (paddingSize > 0)
+                    wrt.Write(new byte[paddingSize]);
             }
 
             var oldPos = wrt.BaseStream.Position;
-
             wrt.BaseStream.Position = leadoutSampleSavePosition;
-            for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
-            {
-                wrt.Write((short)(last[i]));
-                wrt.Write((short)(penult[i]));
-            }
-            wrt.BaseStream.Position = oldPos;
 
-            sampleOffset += samplesThisFrame;
+            // Now that the block has been rendered, push the predictor values into the file.
+            if (lastBlock && Loop) 
+                for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
+                {
+                    wrt.Write((short)loop_last[i]);
+                    wrt.Write((short)loop_penult[i]);
+                    Console.WriteLine($"final last / pen {loop_last[i]} {loop_penult[i]}");
+                }
+            else
+                for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
+                {
+                    wrt.Write((short)(last[i]));
+                    wrt.Write((short)(penult[i]));
+                }            
+            wrt.BaseStream.Position = oldPos;
 
             return 0;
         }

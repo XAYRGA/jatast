@@ -10,6 +10,8 @@ namespace jatast
 {
     class jatast_entrypoint
     {
+        public static StringBuilder DebugOutput = new StringBuilder();
+
         static void Main(string[] args)
         {
     
@@ -25,11 +27,12 @@ namespace jatast
 
                     args = new string[]
             {
-                "Shut Me Up.wav",
+                "KART_BADLOOP.wav",
                 @"E:\DOLPHIN\root\pki2\files\AudioRes\Stream\title.w.32.c4.ast",
                 "-encode-format",
-                "adpcm4"
-
+                "adpcm4",
+                //"-loop",
+                //"13920,3859360"
             };
   
 #endif
@@ -38,6 +41,7 @@ namespace jatast
             EncodeFormat encFmt = EncodeFormat.ADPCM4;
             var encodingArg = cmdarg.findDynamicStringArgument("-encode-format", "def");
             var loopArg = cmdarg.findDynamicStringArgument("-loop", "none");
+            var gainArg = cmdarg.findDynamicFloatArgument("-bananapeel.gain", 1);
 
             var inFile = cmdarg.assertArg(0, "Input File");
             if (inFile == "help")
@@ -45,6 +49,9 @@ namespace jatast
                 showHelp();
                 return;
             }
+
+            bananapeel.EncoderGain = gainArg;
+
             var oft = Path.GetDirectoryName(inFile) + "/" + Path.GetFileNameWithoutExtension(inFile) + ".ast";
             var outFile = cmdarg.tryArg(1, $"Output file, assuming {oft}");
             if (outFile == null)
@@ -102,7 +109,7 @@ namespace jatast
 
  
 
-            if (wav.sampler.loops != null)
+                if (wav.sampler.loops != null)
                 {
                    enc.Loop = true;
                    enc.LoopStart = (int)wav.sampler.loops[0].dwStart;
@@ -124,6 +131,8 @@ namespace jatast
                 }
                 enc.WriteToStream(wrt);
 
+            File.WriteAllText("Debug.txt", DebugOutput.ToString());
+
 #if RELEASE
             }
             catch (Exception E)
@@ -144,7 +153,8 @@ namespace jatast
             Console.WriteLine("by Xayrga");
             Console.WriteLine("Syntax:");
             Console.WriteLine();
-            Console.WriteLine("jatast.exe <input file> <output file> [--encode-format (pcm16,adpcm4)] [--loop startSample,endSample]");
+            Console.WriteLine("jatast.exe <input file> <output file> [-encode-format (pcm16,adpcm4) = adpcm4] [-loop startSample,endSample] [-bananapeel.gain = 1.0]");
+           
             Console.WriteLine("Note: if your WAV file has loop points, they will be automatically imported.");
         }
     }

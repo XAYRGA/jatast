@@ -60,6 +60,34 @@ namespace jatast
             return def;
         }
 
+        public static float findDynamicFloatArgument(string name, float def)
+        {
+            for (int i = 0; i < cmdargs.Length; i++)
+            {
+                if (cmdargs[i] == name || cmdargs[i] == "-" + name)
+                {
+                    if (cmdargs.Length < i + 1)
+                    {
+                        float v = 0;
+                        var ok = float.TryParse(cmdargs[i + 1], out v);
+                        if (!ok)
+                        {
+                            Console.WriteLine($"Invalid parameter for '{cmdargs[i]}' (Number expected, couldn't parse '{cmdargs[i + 1]}' as a number.)");
+                            Environment.Exit(0);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Number argument for '{cmdargs[i]}' expected.");
+                    }
+                    break;
+                }
+            }
+            return def;
+        }
+
+
+
         public static bool findDynamicFlagArgument(string name)
         {
             for (int i = 0; i < cmdargs.Length; i++)
