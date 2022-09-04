@@ -31,8 +31,6 @@ namespace jatast
                 @"E:\DOLPHIN\root\smg1\DATA\files\AudioRes\Stream\SMG_fileselect_strm.ast",
                 "-encode-format",
                 "adpcm4",
-                //"-loop",
-                //"13920,3859360"
             };
   
 #endif

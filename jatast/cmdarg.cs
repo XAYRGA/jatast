@@ -40,7 +40,7 @@ namespace jatast
             {
                 if (cmdargs[i] == name || cmdargs[i] == "-" + name)
                 {
-                    if (cmdargs.Length < i + 1)
+                    if (cmdargs.Length >= i + 1)
                     {
                         int v = 0;
                         var ok = Int32.TryParse(cmdargs[i + 1], out v);
@@ -66,7 +66,7 @@ namespace jatast
             {
                 if (cmdargs[i] == name || cmdargs[i] == "-" + name)
                 {
-                    if (cmdargs.Length < i + 1)
+                    if (cmdargs.Length >= i + 1)
                     {
                         float v = 0;
                         var ok = float.TryParse(cmdargs[i + 1], out v);
