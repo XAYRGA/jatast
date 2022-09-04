@@ -52,10 +52,9 @@ namespace jatast
 
 
 
-        public unsafe static byte[] PCM16ShortToByteBigEndian(short[] pcm)
+        public static byte[] PCM16ShortToByteBigEndian(short[] pcm)
         {
             var pcmB = new byte[pcm.Length * 2];
-
             // For some reason this is faster than pinning in memory?
             for (int i = 0; i < pcmB.Length; i += 2)
             {
@@ -99,7 +98,6 @@ namespace jatast
                     wavIn[k] = samples[(ix * 16) + k];
 
                 // Hack for looping 
-                //Console.WriteLine($"{sampleOffset + (ix * 16)} , {LoopStart}");
                 if (Loop && (sampleOffset + (ix  * 16) == LoopStart))
                 {
                     loop_last[channel] = last;
@@ -244,9 +242,9 @@ namespace jatast
             // Now that the block has been rendered, push the predictor values into the file.
             if (lastBlock && Loop) 
                 for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
-                {
+                {               
+                    wrt.Write((short)loop_penult[i] );
                     wrt.Write((short)loop_last[i]);
-                    wrt.Write((short)loop_penult[i]);
                     Console.WriteLine($"final last / pen {loop_last[i]} {loop_penult[i]}");
                 }
             else

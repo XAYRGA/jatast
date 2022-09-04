@@ -73,7 +73,7 @@ namespace jatast
 
 
 			for (int i = 0; i < pcm16.Length; i++)
-				pcm16[i] = (short)(pcm16[i] * 0.75f);
+				pcm16[i] = (short)(pcm16[i] * 0.75f * EncoderGain);
 
 			if (pcm16.All(sample => sample == 0))
 			{

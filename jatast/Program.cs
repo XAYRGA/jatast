@@ -27,7 +27,7 @@ namespace jatast
 
                     args = new string[]
             {
-                "KART_BADLOOP.wav",
+                "rynker_clean.wav",
                 @"E:\DOLPHIN\root\smg1\DATA\files\AudioRes\Stream\SMG_fileselect_strm.ast",
                 "-encode-format",
                 "adpcm4",
@@ -103,12 +103,8 @@ namespace jatast
             
 
                 for (int i = 0; i < wav.channels; i++)
-                {
                     enc.Channels.Add(util.getPCMBufferChannel(wav, i, 0, enc.SampleCount));
-                }
-
- 
-
+        
                 if (wav.sampler.loops != null)
                 {
                    enc.Loop = true;
