@@ -97,8 +97,9 @@ namespace jatast
                 // Extract samples 16 at a time, 1 frame = 16 samples / 9 bytes. 
                 for (int k = 0; k < 16; k++)
                     wavIn[k] = samples[(ix * 16) + k];
-                
+
                 // Hack for looping 
+                //Console.WriteLine($"{sampleOffset + (ix * 16)} , {LoopStart}");
                 if (Loop && (sampleOffset + (ix  * 16) == LoopStart))
                 {
                     loop_last[channel] = last;
@@ -167,7 +168,7 @@ namespace jatast
 
             sampleOffset = 0; // reset
 
-            Console.WriteLine($"SO {getSampleOffset(0x1D9550,2, 0x0780):X}");
+            //Console.WriteLine($"SO {getSampleOffset(0x1D9550,2, 0x0780):X}");
 
             for (int i = 0; i < total_blocks; i++)
             {
@@ -194,10 +195,12 @@ namespace jatast
             var thisBlockLength = (totalFramesLeft * BytesPerFrame) >= BLCK_SIZE ? BLCK_SIZE : totalFramesLeft * BytesPerFrame;
             var samplesThisFrame = (thisBlockLength / BytesPerFrame) * SamplesPerFrame;
             var paddingSize = 32 - (thisBlockLength % 32);
+            if (paddingSize == 32) // Was zero, we're already aligned.
+                paddingSize = 0;
      
             Console.WriteLine($"Output ADPCM4 Samples... {samplesThisFrame}");
 
-            if (paddingSize > 0 )
+            if (paddingSize > 0)
                 Console.WriteLine($"LAST BLCK Add size {paddingSize} bytes {paddingSize/BytesPerFrame} frames {(paddingSize / BytesPerFrame) * SamplesPerFrame} samples");
        
 
@@ -254,6 +257,7 @@ namespace jatast
                 }            
             wrt.BaseStream.Position = oldPos;
 
+            sampleOffset += samplesThisFrame;
             return 0;
         }
 

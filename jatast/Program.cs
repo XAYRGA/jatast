@@ -28,7 +28,7 @@ namespace jatast
                     args = new string[]
             {
                 "KART_BADLOOP.wav",
-                @"E:\DOLPHIN\root\pki2\files\AudioRes\Stream\title.w.32.c4.ast",
+                @"E:\DOLPHIN\root\smg1\DATA\files\AudioRes\Stream\SMG_fileselect_strm.ast",
                 "-encode-format",
                 "adpcm4",
                 //"-loop",
