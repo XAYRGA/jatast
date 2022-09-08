@@ -27,10 +27,12 @@ namespace jatast
 
                     args = new string[]
             {
-                "rynker_clean.wav",
+                "KART_BADLOOP.wav",
                 @"E:\DOLPHIN\root\smg1\DATA\files\AudioRes\Stream\SMG_fileselect_strm.ast",
                 "-encode-format",
                 "adpcm4",
+                "-bananapeel.gain",
+                "1.1"
             };
   
 #endif
@@ -49,6 +51,7 @@ namespace jatast
             }
 
             bananapeel.EncoderGain = gainArg;
+            Console.WriteLine($"BANANAPEEL: Encoder gain = {gainArg}");
 
             var oft = Path.GetDirectoryName(inFile) + "/" + Path.GetFileNameWithoutExtension(inFile) + ".ast";
             var outFile = cmdarg.tryArg(1, $"Output file, assuming {oft}");
@@ -81,14 +84,25 @@ namespace jatast
             try
             {
 #endif
-
-
                 var wI = File.OpenRead(inFile);
                 var wIR = new BinaryReader(wI);
                 var wO = File.Open(outFile,FileMode.Create,FileAccess.ReadWrite);
                 var wrt = new BeBinaryWriter(wO);
                 var wav = PCM16WAV.readStream(wIR);
                 var enc = new AST();
+
+                if (wav.sampleRate > 32000)
+                {
+
+                    var w = Console.ForegroundColor;
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                    Console.WriteLine("!!!!!!!!!!Looping is broken for wav's >32khz!!!!!!!!!!");
+                    Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                    Console.WriteLine("Consider lowering your samplerate.");
+                    Console.ForegroundColor = w;
+
+                }
 
 
                 enc.ChannelCount = wav.channels;
@@ -125,7 +139,6 @@ namespace jatast
                 }
                 enc.WriteToStream(wrt);
 
-            File.WriteAllText("Debug.txt", DebugOutput.ToString());
 
 #if RELEASE
             }

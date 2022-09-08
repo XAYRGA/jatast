@@ -69,12 +69,13 @@ namespace jatast
                     if (cmdargs.Length >= i + 1)
                     {
                         float v = 0;
-                        var ok = float.TryParse(cmdargs[i + 1], out v);
+                        var ok = float.TryParse(cmdargs[i + 1], System.Globalization.NumberStyles.AllowDecimalPoint,System.Globalization.CultureInfo.GetCultureInfo("en-US"),out v);
                         if (!ok)
                         {
                             Console.WriteLine($"Invalid parameter for '{cmdargs[i]}' (Number expected, couldn't parse '{cmdargs[i + 1]}' as a number.)");
                             Environment.Exit(0);
                         }
+                        return v;                       
                     }
                     else
                     {

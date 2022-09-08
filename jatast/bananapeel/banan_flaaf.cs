@@ -71,7 +71,6 @@ namespace jatast
 			var nibbles = new int[16];
 			int coeffIndex = 0, scale = 0;
 
-
 			for (int i = 0; i < pcm16.Length; i++)
 				pcm16[i] = (short)(pcm16[i] * 0.75f * EncoderGain);
 
