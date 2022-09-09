@@ -30,7 +30,7 @@ namespace jatast
                 "KART_BADLOOP.wav",
                 @"E:\DOLPHIN\root\smg1\DATA\files\AudioRes\Stream\SMG_fileselect_strm.ast",
                 "-encode-format",
-                "adpcm4",
+                "pcm16",
                 "-bananapeel.gain",
                 "1.1"
             };

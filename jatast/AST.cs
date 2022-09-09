@@ -58,7 +58,7 @@ namespace jatast
             // For some reason this is faster than pinning in memory?
             for (int i = 0; i < pcmB.Length; i += 2)
             {
-                var ci = pcm[i];
+                var ci = pcm[i / 2];
                 pcmB[i] = (byte)(ci >> 8);
                 pcmB[i + 1] = (byte)(ci & 0xFF);
             }
@@ -143,8 +143,8 @@ namespace jatast
                     SamplesPerFrame = 16;
                     if (LoopStart % 16 != 0)
                         Console.WriteLine($"ADPCM ENC WARN: Start loop {LoopStart} is not divisible by 16, corrected to { LoopStart += (16 - (LoopStart % 16))} ");
-                    if (LoopEnd % 16 != 0) // Can't increase. 
-                        Console.WriteLine($"ADPCM ENC WARN: End loop {LoopEnd} is not divisible by 16, corrected to {LoopEnd=LoopEnd - (LoopEnd % 16)} ");
+                    //if (LoopEnd % 16 != 0) // Can't increase. 
+                    //    Console.WriteLine($"ADPCM ENC WARN: End loop {LoopEnd} is not divisible by 16, corrected to {LoopEnd=LoopEnd - (LoopEnd % 16)} ");
                     break;
                 case EncodeFormat.PCM8:
                     BytesPerFrame = 1;
@@ -185,8 +185,6 @@ namespace jatast
 
             sampleOffset = 0; // reset
 
-            //Console.WriteLine($"SO {getSampleOffset(0x1D9550,2, 0x0780):X}");
-
 
             Console.WriteLine("Processing BLCK's");
             for (int i = 0; i < total_blocks; i++)
@@ -218,8 +216,6 @@ namespace jatast
             var paddingSize = 32 - (thisBlockLength % 32);
             if (paddingSize == 32) // Was zero, we're already aligned.
                 paddingSize = 0;
-
-            //Console.WriteLine($"Output ADPCM4 Samples... {samplesThisFrame}");
 
             Console.Write(".");
 
