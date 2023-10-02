@@ -24,16 +24,17 @@ namespace jatast
             Console.WriteLine("!JATAST build in debug mode, do not push into release!");
             Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             Console.ForegroundColor = ConsoleColor.Gray;
-
+            /*
                     args = new string[]
             {
-                "KART_BADLOOP.wav",
-                @"E:\DOLPHIN\root\smg1\DATA\files\AudioRes\Stream\SMG_fileselect_strm.ast",
-                "-encode-format",
-                "pcm16",
-                "-bananapeel.gain",
-                "1.1"
+                "BAD_FUTURE.wav",
+                @"test_out.AST",
+               // "-encode-format",
+               // "pcm16",
+               // "-bananapeel.gain",
+                //"1.1"
             };
+            */
   
 #endif
             cmdarg.cmdargs = args;

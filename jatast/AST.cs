@@ -114,7 +114,7 @@ namespace jatast
                 lastLast = last;
                 lastPenult = penult;
 
-                bananapeel.PCM162ADPCM4LLE(wavIn, adpcmOut, ref last, ref penult); // convert PCM16 -> ADPCM4
+                bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult); // convert PCM16 -> ADPCM4
 
 
                 // Hack for looping 
