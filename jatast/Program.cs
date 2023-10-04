@@ -14,9 +14,6 @@ namespace jatast
 
         static void Main(string[] args)
         {
-    
-            //Console.WriteLine(generateDeviceToken());
-            //Console.WriteLine(Guid.NewGuid().ToString());
             Console.WriteLine("JATAST -- JAudio Toolkit AST creator");
 #if DEBUG
             Console.ForegroundColor = ConsoleColor.Red;
@@ -24,18 +21,14 @@ namespace jatast
             Console.WriteLine("!JATAST build in debug mode, do not push into release!");
             Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             Console.ForegroundColor = ConsoleColor.Gray;
-
-                    args = new string[]
+            
+            args = new string[]
             {
-                "KART_BADLOOP.wav",
-                @"E:\DOLPHIN\root\smg1\DATA\files\AudioRes\Stream\SMG_fileselect_strm.ast",
-                "-encode-format",
-                "pcm16",
-                "-bananapeel.gain",
-                "1.1"
+                "smu_loop.wav",
+                @"E:\DOLPHIN\root\twipri\files\Audiores\Stream\title_back.ast",
             };
-  
 #endif
+            var taskTimer = new System.Diagnostics.Stopwatch();
             cmdarg.cmdargs = args;
 
             EncodeFormat encFmt = EncodeFormat.ADPCM4;
@@ -51,7 +44,7 @@ namespace jatast
             }
 
             bananapeel.EncoderGain = gainArg;
-            Console.WriteLine($"BANANAPEEL: Encoder gain = {gainArg}");
+
 
             var oft = Path.GetDirectoryName(inFile) + "/" + Path.GetFileNameWithoutExtension(inFile) + ".ast";
             var outFile = cmdarg.tryArg(1, $"Output file, assuming {oft}");
@@ -67,10 +60,7 @@ namespace jatast
                     Console.WriteLine("Encoding in ADPCM4 -- Report any bugs to the github page!");
                     encFmt = EncodeFormat.ADPCM4;
                     break;
-                case "pcm8":
-                    Console.WriteLine("WARNING: PCM8 may not be supported in most games.");
-                    encFmt = EncodeFormat.PCM8;
-                    break;
+
                 case "def":
                     Console.WriteLine("No encoding format specified, using ADPCM4");
                     break;
@@ -84,24 +74,24 @@ namespace jatast
             try
             {
 #endif
+                 taskTimer.Start();
                 var wI = File.OpenRead(inFile);
                 var wIR = new BinaryReader(wI);
                 var wO = File.Open(outFile,FileMode.Create,FileAccess.ReadWrite);
                 var wrt = new BeBinaryWriter(wO);
                 var wav = PCM16WAV.readStream(wIR);
+
+                if (wav.bitsPerSample != 16)
+                    cmdarg.assert("WAV must be signed PCM 16 bit");
+
                 var enc = new AST();
 
                 if (wav.sampleRate > 32000)
                 {
-
                     var w = Console.ForegroundColor;
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                    Console.WriteLine("!!!!!!!!!!Looping is broken for wav's >32khz!!!!!!!!!!");
-                    Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                    Console.WriteLine("Consider lowering your samplerate.");
+                    Console.WriteLine("DSP Samplerate is only 32khz. Consider lowering your samplerate.");
                     Console.ForegroundColor = w;
-
                 }
 
 
@@ -138,7 +128,7 @@ namespace jatast
                     enc.LoopEnd= (int)lE;
                 }
                 enc.WriteToStream(wrt);
-
+            taskTimer.Stop();
 
 #if RELEASE
             }
@@ -151,6 +141,8 @@ namespace jatast
                 Console.WriteLine();
                 Console.WriteLine($"That wasn't supposed to happen.\n\nA short description of the error: '{E.Message}'\n\nThings you can try:\n1. Checking your WAV file\n2. Check to make sure I can read and write the file.\n3. Crying a lot.\n\nIf you've tried all of these things, please put your tears and the above red text in a jar, and send it to the developer.");
             }
+#else
+            Console.WriteLine($"Task complete in {taskTimer.Elapsed.TotalSeconds}s");
 #endif
 
         }
