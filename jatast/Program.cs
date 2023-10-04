@@ -21,11 +21,13 @@ namespace jatast
             Console.WriteLine("!JATAST build in debug mode, do not push into release!");
             Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             Console.ForegroundColor = ConsoleColor.Gray;
-            
+
             args = new string[]
             {
-                "smu_loop.wav",
+                "mus_lvl2_chase_loop.wav",
                 @"E:\DOLPHIN\root\twipri\files\Audiores\Stream\title_back.ast",
+                "-loop",
+                "556300,2742849"
             };
 #endif
             var taskTimer = new System.Diagnostics.Stopwatch();
@@ -74,60 +76,60 @@ namespace jatast
             try
             {
 #endif
-                 taskTimer.Start();
-                var wI = File.OpenRead(inFile);
-                var wIR = new BinaryReader(wI);
-                var wO = File.Open(outFile,FileMode.Create,FileAccess.ReadWrite);
-                var wrt = new BeBinaryWriter(wO);
-                var wav = PCM16WAV.readStream(wIR);
+            taskTimer.Start();
+            var wI = File.OpenRead(inFile);
+            var wIR = new BinaryReader(wI);
+            var wO = File.Open(outFile, FileMode.Create, FileAccess.ReadWrite);
+            var wrt = new BeBinaryWriter(wO);
+            var wav = PCM16WAV.readStream(wIR);
 
-                if (wav.bitsPerSample != 16)
-                    cmdarg.assert("WAV must be signed PCM 16 bit");
+            if (wav.bitsPerSample != 16)
+                cmdarg.assert("WAV must be signed PCM 16 bit");
 
-                var enc = new AST();
+            var enc = new AST();
 
-                if (wav.sampleRate > 32000)
-                {
-                    var w = Console.ForegroundColor;
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("DSP Samplerate is only 32khz. Consider lowering your samplerate.");
-                    Console.ForegroundColor = w;
-                }
+            if (wav.sampleRate > 32000)
+            {
+                var w = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("DSP Samplerate is only 32khz. Consider lowering your samplerate.");
+                Console.ForegroundColor = w;
+            }
 
 
-                enc.ChannelCount = wav.channels;
-                enc.BitsPerSample = wav.bitsPerSample;
-                enc.BytesPerFrame = wav.byteRate;
-                enc.SampleCount = wav.sampleCount;
-                enc.SampleRate = wav.sampleRate;
-                enc.format = encFmt;
-          
-            
+            enc.ChannelCount = wav.channels;
+            enc.BitsPerSample = wav.bitsPerSample;
+            enc.BytesPerFrame = wav.byteRate;
+            enc.SampleCount = wav.sampleCount;
+            enc.SampleRate = wav.sampleRate;
+            enc.format = encFmt;
 
-                for (int i = 0; i < wav.channels; i++)
-                    enc.Channels.Add(util.getPCMBufferChannel(wav, i, 0, enc.SampleCount));
-        
-                if (wav.sampler.loops != null)
-                {
-                   enc.Loop = true;
-                   enc.LoopStart = (int)wav.sampler.loops[0].dwStart;
-                   enc.LoopEnd = (int)wav.sampler.loops[0].dwEnd;
-                }
 
-                if (loopArg != "none")
-                {
-                    var loopData = loopArg.Split(',');
-                    cmdarg.assert(loopData.Length < 2, "Bad loop format, format is -loop start,end");
-                    var lS = 0u;
-                    var lE = 0u;
-                    cmdarg.assert(!UInt32.TryParse(loopData[0], out lS), $"Cannot parse '{loopData[0]}' as an integer.");
-                    cmdarg.assert(!UInt32.TryParse(loopData[1], out lE), $"Cannot parse '{loopData[1]}' as an integer.");
-                    cmdarg.assert(lS > lE, "Loop start is greater than loop end.");
-                    enc.Loop = true;
-                    enc.LoopStart = (int)lS;
-                    enc.LoopEnd= (int)lE;
-                }
-                enc.WriteToStream(wrt);
+
+            for (int i = 0; i < wav.channels; i++)
+                enc.Channels.Add(util.getPCMBufferChannel(wav, i, 0, enc.SampleCount));
+
+            if (wav.sampler.loops != null)
+            {
+                enc.Loop = true;
+                enc.LoopStart = (int)wav.sampler.loops[0].dwStart;
+                enc.LoopEnd = (int)wav.sampler.loops[0].dwEnd;
+            }
+
+            if (loopArg != "none")
+            {
+                var loopData = loopArg.Split(',');
+                cmdarg.assert(loopData.Length < 2, "Bad loop format, format is -loop start,end");
+                var lS = 0u;
+                var lE = 0u;
+                cmdarg.assert(!UInt32.TryParse(loopData[0], out lS), $"Cannot parse '{loopData[0]}' as an integer.");
+                cmdarg.assert(!UInt32.TryParse(loopData[1], out lE), $"Cannot parse '{loopData[1]}' as an integer.");
+                cmdarg.assert(lS > lE, "Loop start is greater than loop end.");
+                enc.Loop = true;
+                enc.LoopStart = (int)lS;
+                enc.LoopEnd = (int)lE;
+            }
+            enc.WriteToStream(wrt);
             taskTimer.Stop();
 
 #if RELEASE
@@ -153,7 +155,7 @@ namespace jatast
             Console.WriteLine("Syntax:");
             Console.WriteLine();
             Console.WriteLine("jatast.exe <input file> <output file> [-encode-format (pcm16,adpcm4) = adpcm4] [-loop startSample,endSample] [-bananapeel.gain = 1.0]");
-           
+
             Console.WriteLine("Note: if your WAV file has loop points, they will be automatically imported.");
         }
     }

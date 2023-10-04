@@ -43,9 +43,7 @@ namespace jatast
         private int[] penult = new int[BLCK_MAX_CHANNELS];
         private int sampleOffset = 0;
 
-        private int[] loop_penult = new int[BLCK_MAX_CHANNELS];
-        private int[] loop_last = new int[BLCK_MAX_CHANNELS];
-
+        private long total_error = 0;
         public static byte[] PCM16ShortToByteBigEndian(short[] pcm)
         {
             var pcmB = new byte[pcm.Length * 2];
@@ -93,14 +91,10 @@ namespace jatast
 
                 var force_coef = -1;
                 if (Loop && ((sampleOffset + (ix * 16)) == LoopStart))
-                {
-                    loop_last[channel] = last;
-                    loop_penult[channel] = penult;
-                    Console.WriteLine($"\nstore loop predictor values N-1 {ix} ({loop_last[channel]}) N-2({loop_penult[channel]}) Chn:{channel} Smpl:{sampleOffset + (ix * 16)}");
                     force_coef = 0;// for some reason at the loop point the coefs have to be zero.  Thank you @ZyphronG
-                }
                 
-                bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult,force_coef); // convert PCM16 -> ADPCM4
+                
+                total_error += bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult,force_coef); // convert PCM16 -> ADPCM4
                 // Hack for looping 
                 for (int k = 0; k < 9; k++)
                 {
@@ -122,7 +116,7 @@ namespace jatast
                     BytesPerFrame = 9;
                     SamplesPerFrame = 16;
                     if (LoopStart % 16 != 0)
-                        Console.WriteLine($"ADPCM ENC WARN: Start loop {LoopStart} is not divisible by 16, corrected to { LoopStart += (16 - (LoopStart % 16))} ");
+                        Console.WriteLine($"WARN: Start loop {LoopStart} is not divisible by 16, corrected to { LoopStart += (16 - (LoopStart % 16))} ");
 
                     break;
                 case EncodeFormat.PCM16:
@@ -176,6 +170,9 @@ namespace jatast
 
             wrt.Flush();
             wrt.Close();
+#if DEBUG 
+            Console.WriteLine($"Total sample error {total_error}");
+#endif
         }
 
         private int WriteBlock(BeBinaryWriter wrt, bool lastBlock = false)

@@ -11,27 +11,21 @@ namespace jatast
 	public static partial class bananapeel
 	{
 		public static float EncoderGain = 1f;
-		static int[] sSigned2BitTable = new int[4] {
-			0, 1, -2, -1,
-		};
-		static int[] sSigned4BitTable = new int[16] {
-			0, 1, 2, 3, 4, 5, 6, 7, -8, -7, -6, -5, -4, -3, -2, -1,
-		};
 		static short[,] sAdpcmCoefficents = new short[16, 2] {
 			{ 0, 0, }, { 2048, 0, }, { 0, 2048, }, { 1024, 1024, },
 			{ 4096, -2048, }, { 3584, -1536, }, { 3072, -1024, }, { 4608, -2560, },
 			{ 4200, -2248, }, { 4800, -2300, }, { 5120, -3072, }, { 2048, -2048, },
 			{ 1024, -1024, }, { -1024, 1024, }, { -1024, 0, }, { -2048, 0, },
 		};
-			
-		private static void message(params object[] data)
-        {
+
+		private static void message(string message, params object[] data)
+		{
 			var w = Console.ForegroundColor;
 			Console.ForegroundColor = ConsoleColor.Yellow;
 			Console.Write("bananapeel.adpcm# ");
 			Console.ForegroundColor = w;
-			Console.WriteLine(data);
-        }
+			Console.WriteLine(message, data);
+		}
 
 		public static int decodeADPCMSample(int nib, int coefIndex, int scale, int last, int penult)
 		{
@@ -44,7 +38,7 @@ namespace jatast
 		}
 
 
-		public static void PCM16TOADPCM4(short[] pcm16, byte[] adpcm4, ref int last, ref int penult, int force_coefficient = -1)
+		public static int PCM16TOADPCM4(short[] pcm16, byte[] adpcm4, ref int last, ref int penult, int force_coefficient = -1)
 		{
 			var pcmDivisor = 1;
 		retrySolveFrame:
@@ -52,7 +46,7 @@ namespace jatast
 			var bestScale = -1;
 			var current_error = 0;
 			var best_error = Int32.MaxValue;
-
+			var total_error = 0;
 			var forceCoefOn = (force_coefficient > -1);
 
 			for (int coefIndex = 0; coefIndex < 16; coefIndex++)
@@ -61,7 +55,7 @@ namespace jatast
 					coefIndex = force_coefficient;
 
 				for (int scale = 0; scale < 16; scale++)
-				{		
+				{
 					current_error = 0;
 					byte num_ok_frames = 0;
 					var copyLast = last;
@@ -106,7 +100,7 @@ namespace jatast
 				pcmDivisor++;
 				if (pcmDivisor > 10)
 					throw new Exception("Unable to solve for coefficient and scale.");
-				message($"bananapeel.adpcm: failed to solve coefficient, trying again {pcmDivisor}");
+				message($"failed to solve coefficient, trying again divisor = {pcmDivisor} index = {bestCoefficientIndex} scl = {bestScale} bd = {best_error}");
 				goto retrySolveFrame;
 			}
 			var nibbles = new int[16];
@@ -121,11 +115,13 @@ namespace jatast
 				var sampleDecoded = decodeADPCMSample(differentialSampleScaled, bestCoefficientIndex, bestScale, last, penult);
 				penult = last;
 				last = sampleDecoded;
+				total_error += Math.Abs(pcm16[i] - sampleDecoded);
 			}
 
 			adpcm4[0] = (byte)((bestScale << 4) | bestCoefficientIndex);
 			for (var i = 0; i < 8; ++i)
 				adpcm4[1 + i] = (byte)(((nibbles[i * 2] << 4) & 0xF0) | (nibbles[i * 2 + 1] & 0xF));
+			return total_error;
 		}
 	}
 }
