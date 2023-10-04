@@ -23,16 +23,15 @@ namespace jatast
 			{ 4200, -2248, }, { 4800, -2300, }, { 5120, -3072, }, { 2048, -2048, },
 			{ 1024, -1024, }, { -1024, 1024, }, { -1024, 0, }, { -2048, 0, },
 		};
-
-		static short ClampSample16Bit(int sample)
-		{
-			if (sample < -32768)
-				sample = -32768;
-			else if (sample > 32767)
-				sample = 32767;
-
-			return (short)sample;
-		}
+			
+		private static void message(params object[] data)
+        {
+			var w = Console.ForegroundColor;
+			Console.ForegroundColor = ConsoleColor.Yellow;
+			Console.Write("bananapeel.adpcm# ");
+			Console.ForegroundColor = w;
+			Console.WriteLine(data);
+        }
 
 		public static int decodeADPCMSample(int nib, int coefIndex, int scale, int last, int penult)
 		{
@@ -45,28 +44,34 @@ namespace jatast
 		}
 
 
-		public static void PCM16TOADPCM4(short[] pcm16, byte[] adpcm4, ref int last, ref int penult)
+		public static void PCM16TOADPCM4(short[] pcm16, byte[] adpcm4, ref int last, ref int penult, int force_coefficient = -1)
 		{
 			var pcmDivisor = 1;
-		tryAgain:
+		retrySolveFrame:
 			var bestCoefficientIndex = -1;
 			var bestScale = -1;
 			var current_error = 0;
 			var best_error = Int32.MaxValue;
-			for (int scale = 0; scale < 16; scale++)
+
+			var forceCoefOn = (force_coefficient > -1);
+
+			for (int coefIndex = 0; coefIndex < 16; coefIndex++)
 			{
-				for (int coefIndex = 0; coefIndex < 16; coefIndex++)
-				{
+				if (forceCoefOn)
+					coefIndex = force_coefficient;
+
+				for (int scale = 0; scale < 16; scale++)
+				{		
 					current_error = 0;
 					byte num_ok_frames = 0;
 					var copyLast = last;
 					var copyPenult = penult;
-					var scaleMult = (1 << scale);
 					for (int sampleIndex = 0; sampleIndex < pcm16.Length; sampleIndex++)
 					{
 						var pcmSample = pcm16[sampleIndex] / pcmDivisor;
 						var differential = (pcmSample - copyLast);
-						var diff2 = differential >> scale;
+
+						var diff2 = (int)Math.Round((float)differential / (1 << scale)); // Calculate floating point component						
 
 						if (diff2 > 7 || diff2 < -8)
 							break; // this scale is too fat.
@@ -91,6 +96,9 @@ namespace jatast
 						best_error = current_error;
 					}
 				}
+
+				if (forceCoefOn)
+					break; // exit loop, we already have the best coef C:
 			}
 
 			if (bestCoefficientIndex < 0 || bestScale < 0)
@@ -98,18 +106,17 @@ namespace jatast
 				pcmDivisor++;
 				if (pcmDivisor > 10)
 					throw new Exception("Unable to solve for coefficient and scale.");
-				Console.WriteLine("Trying to resolve frame -- this probably means the output is crap.");
-				goto tryAgain;
+				message($"bananapeel.adpcm: failed to solve coefficient, trying again {pcmDivisor}");
+				goto retrySolveFrame;
 			}
-
-
 			var nibbles = new int[16];
+			if (force_coefficient > -1)
+				bestCoefficientIndex = force_coefficient;
 
 			for (int i = 0; i < pcm16.Length; i++)
 			{
 				var differential = ((pcm16[i] / pcmDivisor) - last);
-				var differentialSampleScaled = differential >> bestScale;
-				// already sanity checked, don't waste cycles
+				var differentialSampleScaled = (int)Math.Round((float)differential / (1 << bestScale));
 				nibbles[i] = differentialSampleScaled;
 				var sampleDecoded = decodeADPCMSample(differentialSampleScaled, bestCoefficientIndex, bestScale, last, penult);
 				penult = last;

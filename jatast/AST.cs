@@ -12,7 +12,6 @@ namespace jatast
     {
         ADPCM4 = 0,
         PCM16 = 1,
-        PCM8 = 2
     }
 
 
@@ -40,17 +39,12 @@ namespace jatast
 
         public List<short[]> Channels = new();
 
-
-
-
         private int[] last = new int[BLCK_MAX_CHANNELS];
         private int[] penult = new int[BLCK_MAX_CHANNELS];
         private int sampleOffset = 0;
 
         private int[] loop_penult = new int[BLCK_MAX_CHANNELS];
         private int[] loop_last = new int[BLCK_MAX_CHANNELS];
-
-
 
         public static byte[] PCM16ShortToByteBigEndian(short[] pcm)
         {
@@ -87,14 +81,9 @@ namespace jatast
             byte[] adpcm_data = new byte[frameBufferSize]; 
             int adpcmBufferPosition = 0;
 
-            // Previous frame's L / P 
-            var lastLast = last;
-            var lastPenult = penult;
             // transform one frame at a time
             for (int ix = 0; ix < frameCount; ix++)
             {
-
-
                 short[] wavIn = new short[16];
                 byte[] adpcmOut = new byte[9];
 
@@ -102,31 +91,22 @@ namespace jatast
                 for (int k = 0; k < 16; k++)
                     wavIn[k] = samples[(ix * 16) + k];
 
+                var force_coef = -1;
                 if (Loop && ((sampleOffset + (ix * 16)) == LoopStart))
                 {
-                    
                     loop_last[channel] = last;
                     loop_penult[channel] = penult;
                     Console.WriteLine($"\nstore loop predictor values N-1 {ix} ({loop_last[channel]}) N-2({loop_penult[channel]}) Chn:{channel} Smpl:{sampleOffset + (ix * 16)}");
+                    force_coef = 0;// for some reason at the loop point the coefs have to be zero.  Thank you @ZyphronG
                 }
-
-
-                lastLast = last;
-                lastPenult = penult;
-
-                bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult); // convert PCM16 -> ADPCM4
-
-
+                
+                bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult,force_coef); // convert PCM16 -> ADPCM4
                 // Hack for looping 
-              
-
                 for (int k = 0; k < 9; k++)
                 {
                     adpcm_data[adpcmBufferPosition] = adpcmOut[k]; // dump into ADPCM buffer
                     adpcmBufferPosition++;
                 }
-     
-
 
             }
             return adpcm_data;
@@ -143,12 +123,7 @@ namespace jatast
                     SamplesPerFrame = 16;
                     if (LoopStart % 16 != 0)
                         Console.WriteLine($"ADPCM ENC WARN: Start loop {LoopStart} is not divisible by 16, corrected to { LoopStart += (16 - (LoopStart % 16))} ");
-                    //if (LoopEnd % 16 != 0) // Can't increase. 
-                    //    Console.WriteLine($"ADPCM ENC WARN: End loop {LoopEnd} is not divisible by 16, corrected to {LoopEnd=LoopEnd - (LoopEnd % 16)} ");
-                    break;
-                case EncodeFormat.PCM8:
-                    BytesPerFrame = 1;
-                    SamplesPerFrame = 1;
+
                     break;
                 case EncodeFormat.PCM16:
                     BytesPerFrame = 2;
@@ -201,11 +176,7 @@ namespace jatast
 
             wrt.Flush();
             wrt.Close();
-
-       
         }
-   
-
 
         private int WriteBlock(BeBinaryWriter wrt, bool lastBlock = false)
         {
@@ -216,20 +187,15 @@ namespace jatast
             var paddingSize = 32 - (thisBlockLength % 32);
             if (paddingSize == 32) // Was zero, we're already aligned.
                 paddingSize = 0;
-
             Console.Write(".");
-
             if (paddingSize > 0)
                 Console.WriteLine($"\nLAST BLCK Add size {paddingSize} bytes {paddingSize/BytesPerFrame} frames {(paddingSize / BytesPerFrame) * SamplesPerFrame} samples");
      
-
             wrt.Write(BLCK_HEAD);
             wrt.Write(thisBlockLength + paddingSize);
 
-
             var leadoutSampleSavePosition = wrt.BaseStream.Position;
             wrt.Write(new byte[4 * BLCK_MAX_CHANNELS]); 
-
 
             for (int i=0; i < Channels.Count; i++)
             {
@@ -250,8 +216,8 @@ namespace jatast
                 }
                 wrt.Write(writeBuff);
             
-                last[i] = (short)last_Current;
-                penult[i] = (short)penultimate_Current;
+                last[i] = last_Current;
+                penult[i] = penultimate_Current;
 
                 if (paddingSize > 0)
                     wrt.Write(new byte[paddingSize]);
@@ -261,19 +227,19 @@ namespace jatast
             wrt.BaseStream.Position = leadoutSampleSavePosition;
 
             // Now that the block has been rendered, push the predictor values into the file.
+            
             if (lastBlock && Loop) 
-                for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
-                {
-                    wrt.Write((short)loop_last[i]);
-                    wrt.Write((short)loop_penult[i]);
+               for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
+                {      
+                   wrt.Write((short)0);
+                   wrt.Write((short)0);
                 }
             else
                 for (int i = 0; i < BLCK_MAX_CHANNELS; i++)
-                {
+                {           
                     wrt.Write((short)(last[i]));
                     wrt.Write((short)(penult[i]));
                 }            
-
             wrt.BaseStream.Position = oldPos;
 
             sampleOffset += samplesThisFrame;
