@@ -24,9 +24,7 @@ namespace jatast
                 if (cmdargs[i] == name || cmdargs[i] == "-" + name)
                 {
                     if (cmdargs.Length >= i + 1)
-                    {
                         return cmdargs[i + 1];
-                    }
                     break;
                 }
             }
@@ -39,7 +37,6 @@ namespace jatast
             for (int i = 0; i < cmdargs.Length; i++)
             {
                 if (cmdargs[i] == name || cmdargs[i] == "-" + name)
-                {
                     if (cmdargs.Length >= i + 1)
                     {
                         int v = 0;
@@ -51,11 +48,9 @@ namespace jatast
                         }
                     }
                     else
-                    {
                         Console.WriteLine($"Number argument for '{cmdargs[i]}' expected.");
-                    }
-                    break;
-                }
+
+                    break;    
             }
             return def;
         }
@@ -65,7 +60,6 @@ namespace jatast
             for (int i = 0; i < cmdargs.Length; i++)
             {
                 if (cmdargs[i] == name || cmdargs[i] == "-" + name)
-                {
                     if (cmdargs.Length >= i + 1)
                     {
                         float v = 0;
@@ -78,11 +72,8 @@ namespace jatast
                         return v;                       
                     }
                     else
-                    {
                         Console.WriteLine($"Number argument for '{cmdargs[i]}' expected.");
-                    }
                     break;
-                }
             }
             return def;
         }
@@ -94,9 +85,7 @@ namespace jatast
             for (int i = 0; i < cmdargs.Length; i++)
             {
                 if (cmdargs[i] == name || cmdargs[i] == "-" + name)
-                {
                     return true;
-                }
             }
             return false;
         }
@@ -123,9 +112,7 @@ namespace jatast
             if (cmdargs.Length <= argn)
             {
                 if (assert != null)
-                {
                     Console.WriteLine("No argument #{0} specified {1}.", argn, assert);
-                }
                 return null;
             }
             return cmdargs[argn];
@@ -137,7 +124,7 @@ namespace jatast
         }
         public static void assert(bool cond, string text, params object[] wtf)
         {
-            if (cond == false)
+            if (cond == true)
                 return;
             Console.WriteLine(text, wtf);
             Environment.Exit(0);

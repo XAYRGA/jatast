@@ -21,14 +21,14 @@ namespace jatast
             Console.WriteLine("!JATAST build in debug mode, do not push into release!");
             Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             Console.ForegroundColor = ConsoleColor.Gray;
-
+            
             args = new string[]
             {
-                "mus_lvl2_chase_loop.wav",
-                @"E:\DOLPHIN\root\twipri\files\Audiores\Stream\title_back.ast",
-                "-loop",
-                "556300,2742849"
+                "celeste_loop.wav",
+                @"cac.ast",
+      
             };
+            
 #endif
             var taskTimer = new System.Diagnostics.Stopwatch();
             cmdarg.cmdargs = args;
@@ -36,7 +36,6 @@ namespace jatast
             EncodeFormat encFmt = EncodeFormat.ADPCM4;
             var encodingArg = cmdarg.findDynamicStringArgument("-encode-format", "def");
             var loopArg = cmdarg.findDynamicStringArgument("-loop", "none");
-            var gainArg = cmdarg.findDynamicFloatArgument("-bananapeel.gain", 1);
 
             var inFile = cmdarg.assertArg(0, "Input File");
             if (inFile == "help")
@@ -44,9 +43,6 @@ namespace jatast
                 showHelp();
                 return;
             }
-
-            bananapeel.EncoderGain = gainArg;
-
 
             var oft = Path.GetDirectoryName(inFile) + "/" + Path.GetFileNameWithoutExtension(inFile) + ".ast";
             var outFile = cmdarg.tryArg(1, $"Output file, assuming {oft}");
@@ -71,7 +67,7 @@ namespace jatast
                     break;
             }
 
-            cmdarg.assert(!File.Exists(inFile), $"Cannot locate file '{inFile}'");
+            cmdarg.assert(File.Exists(inFile), $"Cannot locate file '{inFile}'");
 #if RELEASE
             try
             {
@@ -119,12 +115,14 @@ namespace jatast
             if (loopArg != "none")
             {
                 var loopData = loopArg.Split(',');
-                cmdarg.assert(loopData.Length < 2, "Bad loop format, format is -loop start,end");
+                cmdarg.assert(loopData.Length >= 2, "Bad loop format, format is -loop start,end");
                 var lS = 0u;
                 var lE = 0u;
-                cmdarg.assert(!UInt32.TryParse(loopData[0], out lS), $"Cannot parse '{loopData[0]}' as an integer.");
-                cmdarg.assert(!UInt32.TryParse(loopData[1], out lE), $"Cannot parse '{loopData[1]}' as an integer.");
-                cmdarg.assert(lS > lE, "Loop start is greater than loop end.");
+                cmdarg.assert(UInt32.TryParse(loopData[0], out lS), $"Cannot parse '{loopData[0]}' as an integer.");
+                cmdarg.assert(UInt32.TryParse(loopData[1], out lE), $"Cannot parse '{loopData[1]}' as an integer.");
+                cmdarg.assert(lS < enc.SampleCount, "Loop start is more samples than in the file.");
+                cmdarg.assert(lE <= enc.SampleCount, "Loop end is more samples than in the file.");
+                cmdarg.assert(lS < lE, "Loop start is greater than loop end.");
                 enc.Loop = true;
                 enc.LoopStart = (int)lS;
                 enc.LoopEnd = (int)lE;

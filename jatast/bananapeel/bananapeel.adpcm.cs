@@ -19,13 +19,13 @@ namespace jatast
 		};
 
 		private static void message(string message, params object[] data)
-		{
+        {
 			var w = Console.ForegroundColor;
 			Console.ForegroundColor = ConsoleColor.Yellow;
 			Console.Write("bananapeel.adpcm# ");
 			Console.ForegroundColor = w;
 			Console.WriteLine(message, data);
-		}
+        }
 
 		public static int decodeADPCMSample(int nib, int coefIndex, int scale, int last, int penult)
 		{
@@ -55,7 +55,7 @@ namespace jatast
 					coefIndex = force_coefficient;
 
 				for (int scale = 0; scale < 16; scale++)
-				{
+				{		
 					current_error = 0;
 					byte num_ok_frames = 0;
 					var copyLast = last;
@@ -64,20 +64,17 @@ namespace jatast
 					{
 						var pcmSample = pcm16[sampleIndex] / pcmDivisor;
 						var differential = (pcmSample - copyLast);
-
 						var diff2 = (int)Math.Round((float)differential / (1 << scale)); // Calculate floating point component						
 
 						if (diff2 > 7 || diff2 < -8)
 							break; // this scale is too fat.
 
 						var sampleDecoded = decodeADPCMSample(diff2, coefIndex, scale, copyLast, copyPenult);
-
 						if (isInvalidSigned16(sampleDecoded))
 							break; // scale clipped
 
 						var error = Math.Abs(pcmSample - sampleDecoded);
 						current_error += error;
-
 						num_ok_frames++;
 						copyPenult = copyLast;
 						copyLast = sampleDecoded;
@@ -99,10 +96,12 @@ namespace jatast
 			{
 				pcmDivisor++;
 				if (pcmDivisor > 10)
-					throw new Exception("Unable to solve for coefficient and scale.");
-				message($"failed to solve coefficient, trying again divisor = {pcmDivisor} index = {bestCoefficientIndex} scl = {bestScale} bd = {best_error}");
+					throw new Exception("Failed to solve for frame coefficient d=10");
+				message($"failed to solve coefficient\ntrying again d={pcmDivisor}");
 				goto retrySolveFrame;
 			}
+
+
 			var nibbles = new int[16];
 			if (force_coefficient > -1)
 				bestCoefficientIndex = force_coefficient;

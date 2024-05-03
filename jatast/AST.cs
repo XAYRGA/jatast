@@ -37,11 +37,14 @@ namespace jatast
         public int BytesPerFrame;
         public int SamplesPerFrame;
 
+        public int TotalBlocks = 0;
+
         public List<short[]> Channels = new();
 
         private int[] last = new int[BLCK_MAX_CHANNELS];
         private int[] penult = new int[BLCK_MAX_CHANNELS];
         private int sampleOffset = 0;
+        private int writtenBlocks = 0;
 
         private long total_error = 0;
         public static byte[] PCM16ShortToByteBigEndian(short[] pcm)
@@ -93,9 +96,8 @@ namespace jatast
                 if (Loop && ((sampleOffset + (ix * 16)) == LoopStart))
                     force_coef = 0;// for some reason at the loop point the coefs have to be zero.  Thank you @ZyphronG
                 
-                
-                total_error += bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult,force_coef); // convert PCM16 -> ADPCM4
-                // Hack for looping 
+                total_error += bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult,force_coef); // convert PCM16 -> ADPCM4            
+
                 for (int k = 0; k < 9; k++)
                 {
                     adpcm_data[adpcmBufferPosition] = adpcmOut[k]; // dump into ADPCM buffer
@@ -146,7 +148,8 @@ namespace jatast
 
             Console.WriteLine($"Loop point sits at 0x{getSampleOffset(LoopStart,(byte)ChannelCount):X}");
 
-            var total_blocks = (((SampleCount / SamplesPerFrame) * BytesPerFrame) + BLCK_SIZE - 1) / BLCK_SIZE;
+            TotalBlocks = (((SampleCount / SamplesPerFrame) * BytesPerFrame) + BLCK_SIZE - 1) / BLCK_SIZE;
+
 
             // sample history storage for blocks
             last = new int[BLCK_MAX_CHANNELS]; // reset
@@ -154,11 +157,10 @@ namespace jatast
 
             sampleOffset = 0; // reset
 
-
             Console.WriteLine("Processing BLCK's");
-            for (int i = 0; i < total_blocks; i++)
+            for (int i = 0; i < TotalBlocks; i++)
             {
-                WriteBlock(wrt, i+1==total_blocks);
+                WriteBlock(wrt, i+1==TotalBlocks);
                 wrt.Flush();
             }
             Console.WriteLine();
@@ -174,7 +176,7 @@ namespace jatast
             Console.WriteLine($"Total sample error {total_error}");
 #endif
         }
-
+    
         private int WriteBlock(BeBinaryWriter wrt, bool lastBlock = false)
         {
 
@@ -184,12 +186,19 @@ namespace jatast
             var paddingSize = 32 - (thisBlockLength % 32);
             if (paddingSize == 32) // Was zero, we're already aligned.
                 paddingSize = 0;
-            Console.Write(".");
+
+
             if (paddingSize > 0)
                 Console.WriteLine($"\nLAST BLCK Add size {paddingSize} bytes {paddingSize/BytesPerFrame} frames {(paddingSize / BytesPerFrame) * SamplesPerFrame} samples");
      
             wrt.Write(BLCK_HEAD);
             wrt.Write(thisBlockLength + paddingSize);
+
+#if DEBUG
+            Console.WriteLine($"Encoding BLCK {writtenBlocks}/{TotalBlocks}: offset=0x{wrt.BaseStream.Position:X} samples={samplesThisFrame} frames={totalFramesLeft} size=0x{thisBlockLength:X},0x{thisBlockLength * ChannelCount} ");
+#else
+            Console.Write(".");
+#endif
 
             var leadoutSampleSavePosition = wrt.BaseStream.Position;
             wrt.Write(new byte[4 * BLCK_MAX_CHANNELS]); 
@@ -239,6 +248,7 @@ namespace jatast
                 }            
             wrt.BaseStream.Position = oldPos;
 
+            writtenBlocks++;
             sampleOffset += samplesThisFrame;
             return 0;
         }
