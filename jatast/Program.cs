@@ -55,12 +55,11 @@ namespace jatast
                     encFmt = EncodeFormat.PCM16;
                     break;
                 case "adpcm4":
-                    Console.WriteLine("Encoding in ADPCM4 -- Report any bugs to the github page!");
                     encFmt = EncodeFormat.ADPCM4;
                     break;
 
                 case "def":
-                    Console.WriteLine("No encoding format specified, using ADPCM4");
+                    Console.WriteLine("Encoding using ADPCM4");
                     break;
                 default:
                     Console.WriteLine($"Invalid encoding format '{encodingArg}' available formats are:\npcm16, adpcm4");
@@ -73,61 +72,61 @@ namespace jatast
             {
 #endif
             taskTimer.Start();
-            var wI = File.OpenRead(inFile);
-            var wIR = new BinaryReader(wI);
-            var wO = File.Open(outFile, FileMode.Create, FileAccess.ReadWrite);
-            var wrt = new BeBinaryWriter(wO);
-            var wav = PCM16WAV.readStream(wIR);
+            var waveInput = File.OpenRead(inFile);
+            var waveReader = new BinaryReader(waveInput);
+            var astOutputFile = File.Open(outFile, FileMode.Create, FileAccess.ReadWrite);
+            var astOutputWriter = new BeBinaryWriter(astOutputFile);
+            var waveInputObject = PCM16WAV.readStream(waveReader);
 
-            if (wav.bitsPerSample != 16)
+            if (waveInputObject.bitsPerSample != 16)
                 cmdarg.assert("WAV must be signed PCM 16 bit");
 
-            var enc = new AST();
+            var astEncoder = new AST();
 
-            if (wav.sampleRate > 32000)
+            if (waveInputObject.sampleRate > 32000)
             {
                 var w = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("DSP Samplerate is only 32khz. Consider lowering your samplerate.");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"Warning: The Gamecube and Wii only play at 32000hz. Your wav is {waveInputObject.sampleRate}, which means that you are wasting space. Consider changing your samplerate on your WAV file to 32000hz or less.");
                 Console.ForegroundColor = w;
             }
 
 
-            enc.ChannelCount = wav.channels;
-            enc.BitsPerSample = wav.bitsPerSample;
-            enc.BytesPerFrame = wav.byteRate;
-            enc.SampleCount = wav.sampleCount;
-            enc.SampleRate = wav.sampleRate;
-            enc.format = encFmt;
+            astEncoder.ChannelCount = waveInputObject.channels;
+            astEncoder.BitsPerSample = waveInputObject.bitsPerSample;
+            astEncoder.BytesPerFrame = waveInputObject.byteRate;
+            astEncoder.SampleCount = waveInputObject.sampleCount;
+            astEncoder.SampleRate = waveInputObject.sampleRate;
+            astEncoder.format = encFmt;
 
 
 
-            for (int i = 0; i < wav.channels; i++)
-                enc.Channels.Add(util.getPCMBufferChannel(wav, i, 0, enc.SampleCount));
+            for (int i = 0; i < waveInputObject.channels; i++)
+                astEncoder.Channels.Add(util.getPCMBufferChannel(waveInputObject, i, 0, astEncoder.SampleCount));
 
-            if (wav.sampler.loops != null)
+            if (waveInputObject.sampler.loops != null)
             {
-                enc.Loop = true;
-                enc.LoopStart = (int)wav.sampler.loops[0].dwStart;
-                enc.LoopEnd = (int)wav.sampler.loops[0].dwEnd;
+                astEncoder.Loop = true;
+                astEncoder.LoopStart = (int)waveInputObject.sampler.loops[0].dwStart;
+                astEncoder.LoopEnd = (int)waveInputObject.sampler.loops[0].dwEnd;
             }
 
             if (loopArg != "none")
             {
                 var loopData = loopArg.Split(',');
-                cmdarg.assert(loopData.Length >= 2, "Bad loop format, format is -loop start,end");
-                var lS = 0u;
-                var lE = 0u;
-                cmdarg.assert(UInt32.TryParse(loopData[0], out lS), $"Cannot parse '{loopData[0]}' as an integer.");
-                cmdarg.assert(UInt32.TryParse(loopData[1], out lE), $"Cannot parse '{loopData[1]}' as an integer.");
-                cmdarg.assert(lS < enc.SampleCount, "Loop start is more samples than in the file.");
-                cmdarg.assert(lE <= enc.SampleCount, "Loop end is more samples than in the file.");
-                cmdarg.assert(lS < lE, "Loop start is greater than loop end.");
-                enc.Loop = true;
-                enc.LoopStart = (int)lS;
-                enc.LoopEnd = (int)lE;
+                cmdarg.assert(loopData.Length >= 2, "Bad loop format, format is -loop start,end. Units are in samples, not seconds or otherwise.");
+                var loopStartParsed = 0u;
+                var loopEndParsed = 0u;
+                cmdarg.assert(UInt32.TryParse(loopData[0], out loopStartParsed), $"Cannot parse '{loopData[0]}' as an integer.");
+                cmdarg.assert(UInt32.TryParse(loopData[1], out loopEndParsed), $"Cannot parse '{loopData[1]}' as an integer.");
+                cmdarg.assert(loopStartParsed < astEncoder.SampleCount, "Loop start is more samples than in the file.");
+                cmdarg.assert(loopEndParsed <= astEncoder.SampleCount, "Loop end is more samples than in the file.");
+                cmdarg.assert(loopStartParsed < loopEndParsed, "Loop start is greater than loop end.");
+                astEncoder.Loop = true;
+                astEncoder.LoopStart = (int)loopStartParsed;
+                astEncoder.LoopEnd = (int)loopEndParsed;
             }
-            enc.WriteToStream(wrt);
+            astEncoder.WriteToStream(astOutputWriter);
             taskTimer.Stop();
 
 #if RELEASE
@@ -139,7 +138,7 @@ namespace jatast
                 Console.WriteLine(E.ToString());
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.WriteLine();
-                Console.WriteLine($"That wasn't supposed to happen.\n\nA short description of the error: '{E.Message}'\n\nThings you can try:\n1. Checking your WAV file\n2. Check to make sure I can read and write the file.\n3. Crying a lot.\n\nIf you've tried all of these things, please put your tears and the above red text in a jar, and send it to the developer.");
+                Console.WriteLine($"That wasn't supposed to happen.\n\nA short description of the error: '{E.Message}'\n\nThings you can try:\n1. Checking your WAV file, verify that it is in the correct format\n2. Make sure the folder you're saving to is writable.\n3. If all else fails, submitting an issue request on github.");
             }
 #else
             Console.WriteLine($"Task complete in {taskTimer.Elapsed.TotalSeconds}s");
@@ -153,8 +152,15 @@ namespace jatast
             Console.WriteLine("Syntax:");
             Console.WriteLine();
             Console.WriteLine("jatast.exe <input file> <output file> [-encode-format (pcm16,adpcm4) = adpcm4] [-loop startSample,endSample] [-bananapeel.gain = 1.0]");
+            Console.WriteLine("\t -loop <startSample,EndSample> - Samples are in samples, not seconds or otherwise.");
+            Console.WriteLine("\t -encode-fromat <format> - Sets the encoding format for the AST, options are:");
+            Console.WriteLine("\t\t * adpcm4 [9 bytes/16 samples] (default)  -- The default codec for the gamecube. Space efficient, but lossy quality. ");
+            Console.WriteLine("\t\t * pcm16 [32 bytes/16 samples] (not recommended) -- Optional high quality codec. This will use a lot of I/O bandwidth and will increase load times if you're streaming while loading. Only use this if you know what you're doing.");
+            Console.WriteLine("\n\n");
+            Console.WriteLine("My game takes a long time to load while music is playing:");
+            Console.WriteLine("\t*Lower your samplerate, and make sure you're using adpcm4. The gamecube and wii do not load the entire song at once, so it will constantly be using the disk to play music.");
 
-            Console.WriteLine("Note: if your WAV file has loop points, they will be automatically imported.");
+            Console.WriteLine("Note: if your WAV file has loop points, they will be automatically imported. ");
         }
     }
 }
