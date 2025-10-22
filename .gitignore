@@ -355,3 +355,4 @@ MigrationBackup/
 .ionide/
 /jatast_linux64
 /jatast_win64
+*.zip
