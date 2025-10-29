@@ -12,6 +12,7 @@ namespace jatast
     {
         ADPCM4 = 0,
         PCM16 = 1,
+        PCM8 = 2
     }
 
 
@@ -59,6 +60,16 @@ namespace jatast
             }
             return pcmB;
         }
+
+        public static byte[] PCM1628(short[] pcm16)
+        {
+            byte[] pcm8Data = new byte[pcm16.Length];
+            for (int ix = 0; ix < pcm8Data.Length; ix++)
+                pcm8Data[ix] = (byte)((sbyte)(pcm16[ix] >> 8));
+
+            return pcm8Data;
+        }
+
 
         private int getSampleOffset(int sample, byte channel = 1, int lastBlockSize = BLCK_SIZE)
         {
@@ -119,10 +130,14 @@ namespace jatast
                     SamplesPerFrame = 16;
                     if (LoopStart % 16 != 0)
                         Console.WriteLine($"WARN: Start loop {LoopStart} is not divisible by 16, corrected to { LoopStart += (16 - (LoopStart % 16))} ");
-
                     break;
                 case EncodeFormat.PCM16:
                     BytesPerFrame = 2;
+                    SamplesPerFrame = 1;
+                    break;
+
+                case EncodeFormat.PCM8:
+                    BytesPerFrame = 1;
                     SamplesPerFrame = 1;
                     break;
             }
@@ -218,6 +233,9 @@ namespace jatast
                         break;
                     case EncodeFormat.PCM16:
                         writeBuff = PCM16ShortToByteBigEndian(samples);
+                        break;
+                    case EncodeFormat.PCM8:
+                        writeBuff = PCM1628(samples);
                         break;
                 }
                 wrt.Write(writeBuff);

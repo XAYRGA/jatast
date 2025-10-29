@@ -54,10 +54,12 @@ namespace jatast
                 case "pcm16":
                     encFmt = EncodeFormat.PCM16;
                     break;
+                case "pcm8":
+                    encFmt = EncodeFormat.PCM8;
+                    break;
                 case "adpcm4":
                     encFmt = EncodeFormat.ADPCM4;
                     break;
-
                 case "def":
                     Console.WriteLine("Encoding using ADPCM4");
                     break;
