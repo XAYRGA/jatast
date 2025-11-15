@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Be.IO;
+
 
 namespace jatast
 {
@@ -47,15 +47,15 @@ namespace jatast
         private int writtenBlocks = 0;
 
         private long total_error = 0;
-        public static byte[] PCM16ShortToByteBigEndian(short[] pcm)
+        public static byte[] PCM16ShortToByte(short[] pcm)
         {
             var pcmB = new byte[pcm.Length * 2];
             // For some reason this is faster than pinning in memory?
             for (int i = 0; i < pcmB.Length; i += 2)
             {
                 var ci = pcm[i / 2];
-                pcmB[i] = (byte)(ci >> 8);
-                pcmB[i + 1] = (byte)(ci & 0xFF);
+                pcmB[i] = (byte)(ci & 0xFF);
+                pcmB[i + 1] = (byte)(ci >> 8);  
             }
             return pcmB;
         }
@@ -109,7 +109,7 @@ namespace jatast
         }
 
 
-        public void WriteToStream(BeBinaryWriter wrt)
+        public void WriteToStream(BinaryWriter wrt)
         {
 
             switch (format)
@@ -177,7 +177,7 @@ namespace jatast
 #endif
         }
     
-        private int WriteBlock(BeBinaryWriter wrt, bool lastBlock = false)
+        private int WriteBlock(BinaryWriter wrt, bool lastBlock = false)
         {
 
             var totalFramesLeft = ((SampleCount - sampleOffset) + SamplesPerFrame - 1) / SamplesPerFrame;
@@ -217,7 +217,7 @@ namespace jatast
                        writeBuff = EncodeADPCM4Block(samples, samplesThisFrame, ref last_Current, ref penultimate_Current,i);
                         break;
                     case EncodeFormat.PCM16:
-                        writeBuff = PCM16ShortToByteBigEndian(samples);
+                        writeBuff = PCM16ShortToByte(samples);
                         break;
                 }
                 wrt.Write(writeBuff);
