@@ -96,7 +96,7 @@ namespace jatast
                 if (Loop && ((sampleOffset + (ix * 16)) == LoopStart))
                     force_coef = 0;// for some reason at the loop point the coefs have to be zero.  Thank you @ZyphronG
                 
-                total_error += bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult,force_coef); // convert PCM16 -> ADPCM4            
+                bananapeel.PCM16TOADPCM4(wavIn, adpcmOut, ref last, ref penult,force_coef==0); // convert PCM16 -> ADPCM4            
 
                 for (int k = 0; k < 9; k++)
                 {
