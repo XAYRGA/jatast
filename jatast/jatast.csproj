@@ -8,4 +8,8 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="be.io" Version="1.0.0" />
+  </ItemGroup>
+
 </Project>

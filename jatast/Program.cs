@@ -22,12 +22,7 @@ namespace jatast
             Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             Console.ForegroundColor = ConsoleColor.Gray;
             
-            args = new string[]
-            {
-                "celeste_loop.wav",
-                @"cac.ast",
-      
-            };
+    
             
 #endif
             var taskTimer = new System.Diagnostics.Stopwatch();
